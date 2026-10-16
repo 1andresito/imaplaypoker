@@ -7,6 +7,7 @@ import { HowToPlay, Logo, MainMenu, StatsScreen, TableSetup } from "./ui/Menu";
 import { ASSIST_LEVELS, PreflopChartModal, SettingsModal } from "./ui/Modals";
 import { StatsPanel } from "./ui/StatsPanel";
 import { Table } from "./ui/Table";
+import { UpdateDialog } from "./ui/Updates";
 import { useAnalysis } from "./ui/useAnalysis";
 
 type Tab = "helper" | "stats" | "history";
@@ -32,6 +33,7 @@ export function App() {
         </>
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      <UpdateDialog />
     </div>
   );
 }

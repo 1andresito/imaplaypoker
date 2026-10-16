@@ -440,6 +440,17 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
 .menu-btn.primary:hover:not(:disabled) { border-color: #fff4cc; }
 .menu-footer { color: rgb(255 255 255 / 0.6); font-weight: 600; }
 
+/* "Update available" ribbon at the top of menu screens. */
+.update-banner {
+  position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 6;
+  display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 1.2rem; border-radius: 999px;
+  background: linear-gradient(#ffd56b, #e8a92e); color: #2a1a02; border: 2px solid #ffe39a; font-weight: 700;
+  box-shadow: 0 0.4rem 1.2rem rgb(0 0 0 / 0.4); animation: drop-in 400ms ease-out both;
+}
+.update-banner:hover { filter: brightness(1.06); }
+.update-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: #c0392b; box-shadow: 0 0 0 3px rgb(192 57 43 / 0.3); }
+.update-notes { white-space: pre-wrap; display: flex; flex-direction: column; gap: 0.3rem; max-height: 12rem; overflow: auto; }
+
 /* Panel screens (setup, how to play, stats) */
 .menu-panel {
   position: relative; gap: 1rem; width: min(64rem, calc(100% - 2rem)); margin: 4.6rem auto 1.5rem;

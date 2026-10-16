@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { initGameSounds } from "./audio/gameSounds";
 import { useGameStore } from "./store/gameStore";
+import { isDesktopApp, useUpdateStore } from "./store/updateStore";
 import "./styles.css";
 
 // Dev conveniences: ?autoplay skips the lobby; ?autoplay=showdown also checks/calls
@@ -22,6 +23,9 @@ if (autoplay !== null) {
 }
 
 initGameSounds();
+
+// Desktop app: look for a new version shortly after launch (quietly; offline is fine).
+if (isDesktopApp()) setTimeout(() => void useUpdateStore.getState().check(true), 2000);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

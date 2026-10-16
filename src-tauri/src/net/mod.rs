@@ -113,7 +113,7 @@ async fn discover_rooms() -> Vec<discovery::FoundRoom> {
     discovery::discover(DISCOVERY_PORT, Duration::from_millis(1200)).await
 }
 
-pub fn commands<R: tauri::Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + Send + Sync + 'static {
+pub fn commands() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
         host_open,
         host_send,

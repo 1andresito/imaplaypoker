@@ -13,6 +13,9 @@ A desktop poker game for **Windows, macOS, and Linux** that teaches you while yo
   | Coach | Hints plus a suggested action with a plain-English reason |
   | Guided | Coach plus the suggested button highlighted, bet size pre-filled, and a starting-hand chart |
 
+- **Game-style menus:** a main menu (Play, How to Play, My Stats, Settings) and a one-screen table setup with tiles for opponents, their style, stakes, chips, and help level.
+- **Sound:** synthesized effects for cards, chips, checks and folds, plus interface sounds for hovering, clicking, tabs, toggles, sliders and dialogs. Optional jazz (off by default; turn it on with the ♫ button), looped seamlessly: the player trims the track's ending fade and silence and crossfades each pass into the next (`src/audio/musicLoop.ts`).
+
 Omaha, Five-Card Draw, and Seven-Card Stud are planned. The engine's `Variant` interface (`src/engine/variants/`) is where they plug in.
 
 ## Run it
@@ -38,6 +41,15 @@ npm run tauri build   # installer for the current OS (src-tauri/target/release/b
 
 Installers for all three platforms are built by GitHub Actions (`.github/workflows/build.yml`) on every push to `main`. Pushing a tag like `v0.1.0` creates a draft release with the installers attached.
 
+## Logo and icons
+
+The chip-stack logo is drawn in code (`src/ui/logo.ts`). After changing it, regenerate the favicon and desktop icons:
+
+```bash
+node --experimental-transform-types scripts/make-icons.mjs
+npx tauri icon app-icon.svg
+```
+
 ## Project layout
 
 ```
@@ -49,3 +61,7 @@ src/store/     zustand store tying the engine, bots and stats together
 src/ui/        React components (table, action bar, Hand Helper, stats, hand log)
 src-tauri/     the native desktop shell (window only — no game logic in Rust)
 ```
+
+## Credits
+
+Music: “Jazz Improvisation Looped” by Alex McCulloch (Pro Sensory), [CC0](https://creativecommons.org/publicdomain/zero/1.0/), from [OpenGameArt](https://opengameart.org/content/jazz-improvisation-looped). All sound effects are synthesized in code (`src/audio/sound.ts`).

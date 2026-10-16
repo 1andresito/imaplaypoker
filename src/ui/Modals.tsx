@@ -1,20 +1,32 @@
 import { type ReactNode, useEffect } from "react";
+import { play } from "../audio/sound";
 import { chartGrid, GROUP_LABELS, groupOfClass, handClass } from "../analysis/preflopChart";
 import type { Card } from "../engine/cards";
 import { type AssistLevel, type BotSpeed, useGameStore } from "../store/gameStore";
 
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+let lastOpenSound = 0;
+
+export function Modal({ title, onClose: onCloseProp, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const onClose = () => {
+    play("close");
+    onCloseProp();
+  };
+  useEffect(() => {
+    // Throttled: React's dev mode mounts effects twice.
+    if (performance.now() - lastOpenSound > 200) play("open");
+    lastOpenSound = performance.now();
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  });
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2>{title}</h2>
-          <button className="btn btn-ghost" onClick={onClose} aria-label="Close">✕</button>
+          <button className="btn btn-ghost" onClick={onClose} aria-label="Close" data-silent>✕</button>
         </div>
         {children}
       </div>
@@ -73,11 +85,11 @@ export function PreflopChartModal({ hole, onClose }: { hole?: readonly Card[]; o
   );
 }
 
-export const ASSIST_LEVELS: { id: AssistLevel; name: string; description: string }[] = [
-  { id: "off", name: "Off", description: "Just the game. The Hand Helper shows only your hand and the rankings." },
-  { id: "hints", name: "Hints", description: "Win chance, pot odds, outs, and what beats you." },
-  { id: "coach", name: "Coach", description: "Hints, plus a suggested action with a plain-English reason." },
-  { id: "guided", name: "Guided", description: "Coach, plus it highlights the suggested button and pre-fills the bet size." },
+export const ASSIST_LEVELS: { id: AssistLevel; icon: string; name: string; short: string; description: string }[] = [
+  { id: "off", icon: "🃏", name: "Off", short: "Just the cards", description: "Just the game. The Hand Helper shows only your hand and the rankings." },
+  { id: "hints", icon: "💡", name: "Hints", short: "Odds & outs", description: "Win chance, pot odds, outs, and what beats you." },
+  { id: "coach", icon: "🎓", name: "Coach", short: "Tips with reasons", description: "Hints, plus a suggested action with a plain-English reason." },
+  { id: "guided", icon: "🧭", name: "Guided", short: "Shows the best move", description: "Coach, plus it highlights the suggested button and pre-fills the bet size." },
 ];
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -90,25 +102,60 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Settings" onClose={onClose}>
       <div>
+        <h4>Help while playing</h4>
         <div className="field" style={{ alignItems: "flex-start", flexDirection: "column" }}>
           <div>
             <div>Assistance level</div>
             <div className="desc">How much help you get while you play.</div>
           </div>
-          <div style={{ display: "grid", gap: 6, width: "100%" }}>
+          <div className="tile-row compact" style={{ width: "100%" }}>
             {ASSIST_LEVELS.map((l) => (
-              <button
-                key={l.id}
-                className="choice"
-                aria-pressed={settings.assist === l.id}
-                onClick={() => update({ assist: l.id })}
-                style={{ padding: "8px 12px" }}
-              >
-                <span className="title">{l.name}</span>
-                <span className="desc">{l.description}</span>
+              <button key={l.id} className="tile" aria-pressed={settings.assist === l.id} onClick={() => update({ assist: l.id })} title={l.description}>
+                {settings.assist === l.id && <span className="tile-check" aria-hidden>✓</span>}
+                <span className="tile-icon">{l.icon}</span>
+                <span className="tile-name">{l.name}</span>
+                <span className="tile-desc">{l.short}</span>
               </button>
             ))}
           </div>
+          <div className="desc">{ASSIST_LEVELS.find((l) => l.id === settings.assist)?.description}</div>
+        </div>
+        <h4>Sound</h4>
+        <div className="field">
+          <div>
+            <div>Sound effects</div>
+            <div className="desc">Cards, chips, buttons, and a chime when it's your turn.</div>
+          </div>
+          <Toggle label="Sound effects" checked={settings.soundEffects} onChange={(v) => update({ soundEffects: v })} />
+        </div>
+        <div className="field">
+          <div>Effects volume</div>
+          <input type="range" min={0} max={1} step={0.05} value={settings.volume}
+            onChange={(e) => update({ volume: Number(e.target.value) })} aria-label="Effects volume" />
+        </div>
+        <div className="field">
+          <div>
+            <div>Background music</div>
+            <div className="desc">Relaxed looping jazz.</div>
+          </div>
+          <Toggle label="Background music" checked={settings.music} onChange={(v) => update({ music: v })} />
+        </div>
+        <div className="field">
+          <div>Music volume</div>
+          <input type="range" min={0} max={1} step={0.05} value={settings.musicVolume}
+            onChange={(e) => update({ musicVolume: Number(e.target.value) })} aria-label="Music volume" />
+        </div>
+        <div className="credit">
+          Music: “Jazz Improvisation Looped” by Alex McCulloch (Pro Sensory), released into the public domain (CC0).
+        </div>
+
+        <h4>Display</h4>
+        <div className="field">
+          <div>
+            <div>Large text</div>
+            <div className="desc">Makes all text and cards bigger.</div>
+          </div>
+          <Toggle label="Large text" checked={settings.largeText} onChange={(v) => update({ largeText: v })} />
         </div>
         <div className="field">
           <div>
@@ -124,6 +171,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </div>
           <Toggle label="Four-color deck" checked={settings.fourColorDeck} onChange={(v) => update({ fourColorDeck: v })} />
         </div>
+
+        <h4>Game</h4>
         <div className="field">
           <div>
             <div>Deal next hand automatically</div>
@@ -134,7 +183,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         <div className="field">
           <div>
             <div>Opponent speed</div>
-            <div className="desc">How long bots take to act.</div>
+            <div className="desc">How long the computer players take to act.</div>
           </div>
           <div className="segmented">
             {(["slow", "normal", "fast"] as BotSpeed[]).map((s) => (

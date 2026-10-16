@@ -1,6 +1,6 @@
 import type { ActionType } from "../engine/types";
 import { potOdds } from "./potOdds";
-import { describeStartingHand, GROUP_LABELS, preflopGroup, topPercent } from "./preflopChart";
+import { describeStartingHand, GROUP_LABELS, preflopGroup, rankText } from "./preflopChart";
 import type { Position, Situation } from "./situation";
 
 export interface Advice {
@@ -58,8 +58,7 @@ function preflop(sit: Situation): Advice {
   const group = preflopGroup(sit.hole);
   const name = describeStartingHand(sit.hole);
   const label = GROUP_LABELS[group].toLowerCase();
-  const top = Math.round(topPercent(sit.hole));
-  const strength = `${name} is a ${label} hand (top ${top}% of starting hands)`;
+  const strength = `${name} is a ${label} hand (${rankText(sit.hole)})`;
   const { legal, bigBlind, stack } = sit;
 
   if (!sit.facingRaise) {

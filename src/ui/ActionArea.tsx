@@ -27,14 +27,10 @@ export function ActionArea({ game, advice, assist }: Props) {
       ) : (
         <div className="action-bar">
           <div className="waiting">
-            <span className="think">
-              <i />
-              <i />
-              <i />
-            </span>
+            <span className="think"><i /><i /><i /></span>
             {game.players.find((p) => p.id === HUMAN_ID)?.folded
               ? "You folded. Watch how the hand plays out."
-              : `Waiting for ${game.players[game.toAct]?.name}…`}
+              : `${game.players[game.toAct]?.name} is thinking…`}
           </div>
         </div>
       )}
@@ -45,10 +41,13 @@ export function ActionArea({ game, advice, assist }: Props) {
 function CoachBox({ advice }: { advice: Advice }) {
   return (
     <div className="coach-box" role="status">
+      <div className="icon" aria-hidden>🎓</div>
       <div>
-        <div className="who">Coach suggests</div>
-        <div className="headline">{advice.headline}</div>
-        <div className="text-2">{advice.reason}</div>
+        <div className="who">Coach says</div>
+        <div className="reason">
+          <strong>{advice.headline}.</strong>
+          {advice.reason}
+        </div>
       </div>
     </div>
   );
@@ -64,11 +63,12 @@ function ActionBar({
   recommended: Advice | null;
 }) {
   const legal = legalActions(game)!;
+  const me = game.players[game.toAct];
   const pot = potTotal(game);
   const [amount, setAmount] = useState(legal.minRaiseTo);
   useEffect(() => setAmount(recommended?.amount ?? legal.minRaiseTo), [game, legal.minRaiseTo, recommended?.amount]);
 
-  const clamp = (n: number) => Math.max(legal.minRaiseTo, Math.min(legal.maxRaiseTo, Math.round(n)));
+  const clamp = (n: number) => Math.max(legal.minRaiseTo, Math.min(legal.maxRaiseTo, Math.round(n) || 0));
   // "Pot-sized" raise: call first, then raise the size of the resulting pot.
   const potRaise = (fraction: number) => clamp(game.currentBet + (pot + legal.toCall) * fraction);
   const rec = (kind: "fold" | "call" | "raise") => {
@@ -95,52 +95,61 @@ function ActionBar({
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const allIn = clamp(amount) === legal.maxRaiseTo;
-  const raiseLabel = allIn ? "All-in" : legal.raiseType === "bet" ? "Bet" : "Raise to";
+  const to = clamp(amount);
+  const allIn = to === legal.maxRaiseTo;
+  const callAllIn = legal.toCall >= me.stack;
 
   return (
-    <div className="action-bar">
-      <button className={`btn act fold ${rec("fold") ? "recommended" : ""}`} onClick={fold} disabled={!legal.canFold}>
-        Fold<span className="kbd">F</span>
-      </button>
-      <button className={`btn act call ${rec("call") ? "recommended" : ""}`} onClick={checkCall}>
-        {legal.canCheck ? "Check" : legal.toCall >= game.players[game.toAct].stack ? `Call all-in ${chips(legal.toCall)}` : `Call ${chips(legal.toCall)}`}
-        <span className="kbd">C</span>
-      </button>
+    <div className="action-bar my-turn">
+      <div className="turn-banner">
+        <span className="title">Your turn!</span>
+        <span className="facts num">
+          {legal.canCheck ? "No bet to call" : `To call: ${chips(legal.toCall)}`} · Pot: {chips(pot)} · Your chips: {chips(me.stack)}
+        </span>
+      </div>
+      <div className="act-row">
+        <button className={`act fold ${rec("fold") ? "recommended" : ""}`} onClick={fold} disabled={!legal.canFold}>
+          Fold
+          <span className="sub">{legal.canFold ? "Give up this hand" : "Free to check instead"}<span className="kbd">F</span></span>
+        </button>
+        <button className={`act call ${rec("call") ? "recommended" : ""}`} onClick={checkCall}>
+          {legal.canCheck ? "Check" : callAllIn ? `Call all-in` : `Call ${chips(legal.toCall)}`}
+          <span className="sub">{legal.canCheck ? "Pass without betting" : callAllIn ? `${chips(legal.toCall)} chips` : "Match the bet"}<span className="kbd">C</span></span>
+        </button>
+        <button className={`act raise ${rec("raise") ? "recommended" : ""}`} onClick={raise} disabled={!legal.canRaise}>
+          {!legal.canRaise ? "Raise" : allIn ? `All-in ${chips(to)}` : `${legal.raiseType === "bet" ? "Bet" : "Raise to"} ${chips(to)}`}
+          <span className="sub">{legal.canRaise ? "Set the amount below" : "Can't raise now"}<span className="kbd">R</span></span>
+        </button>
+      </div>
       {legal.canRaise && (
-        <>
-          <button className={`btn act raise btn-primary ${rec("raise") ? "recommended" : ""}`} onClick={raise}>
-            {raiseLabel} {chips(clamp(amount))}
-            <span className="kbd" style={{ color: "inherit" }}>R</span>
-          </button>
-          <div className="raise-controls">
-            <input
-              type="range"
-              min={legal.minRaiseTo}
-              max={legal.maxRaiseTo}
-              step={Math.max(1, game.config.smallBlind)}
-              value={clamp(amount)}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              aria-label="Bet amount"
-            />
-            <input
-              type="number"
-              className="num"
-              min={legal.minRaiseTo}
-              max={legal.maxRaiseTo}
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              onBlur={() => setAmount(clamp(amount))}
-              aria-label="Bet amount"
-            />
-            <div className="presets">
-              <button className="btn btn-sm" onClick={() => setAmount(legal.minRaiseTo)}>Min</button>
-              <button className="btn btn-sm" onClick={() => setAmount(potRaise(0.5))}>½ Pot</button>
-              <button className="btn btn-sm" onClick={() => setAmount(potRaise(1))}>Pot</button>
-              <button className="btn btn-sm" onClick={() => setAmount(legal.maxRaiseTo)}>All-in</button>
-            </div>
+        <div className="raise-controls">
+          <span className="lbl">Amount</span>
+          <input
+            type="range"
+            min={legal.minRaiseTo}
+            max={legal.maxRaiseTo}
+            step={Math.max(1, game.config.smallBlind)}
+            value={to}
+            onChange={(e) => setAmount(Number(e.target.value))}
+            aria-label="Bet amount"
+          />
+          <input
+            type="number"
+            className="num"
+            min={legal.minRaiseTo}
+            max={legal.maxRaiseTo}
+            value={amount}
+            onChange={(e) => setAmount(Number(e.target.value))}
+            onBlur={() => setAmount(to)}
+            aria-label="Bet amount"
+          />
+          <div className="presets">
+            <button className="btn btn-sm" onClick={() => setAmount(legal.minRaiseTo)}>Min</button>
+            <button className="btn btn-sm" onClick={() => setAmount(potRaise(0.5))}>½ Pot</button>
+            <button className="btn btn-sm" onClick={() => setAmount(potRaise(1))}>Pot</button>
+            <button className="btn btn-sm" onClick={() => setAmount(legal.maxRaiseTo)}>All-in</button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -152,50 +161,44 @@ function ResultBanner({ game }: { game: GameState }) {
   const me = game.players.find((p) => p.id === HUMAN_ID)!;
   const myWin = outcome.payouts[HUMAN_ID] ?? 0;
   const net = myWin - me.handBet;
-  const name = (id: string) => game.players.find((p) => p.id === id)!.name;
-
-  const lines = outcome.pots.map((pot, i) => {
-    const who = pot.winners.map(name).join(" & ");
-    const label = outcome.pots.length > 1 ? (i === 0 ? "Main pot" : `Side pot ${i}`) : "Pot";
-    const verb = pot.winners.length > 1 ? "split" : pot.winners[0] === HUMAN_ID ? "win" : "wins";
-    return `${who} ${verb} ${label.toLowerCase()} (${chips(pot.amount)})${pot.handName ? ` with ${pot.handName}` : ""}`;
-  });
-
+  const myHand = outcome.hands[HUMAN_ID];
   const busted = me.stack === 0;
   const tableWon = !busted && game.players.every((p) => p.isHuman || p.stack === 0);
-  const myHand = outcome.hands[HUMAN_ID];
+
+  const title = tableWon
+    ? "You won the table! 🏆"
+    : busted
+      ? "You're out of chips"
+      : myWin > 0
+        ? `You won ${chips(myWin)} chips`
+        : me.folded
+          ? me.handBet > 0 ? `You folded and lost ${chips(me.handBet)}` : "You folded"
+          : me.handBet > 0
+            ? `You lost ${chips(me.handBet)} chips`
+            : "Hand over";
 
   return (
-    <div className={`result-banner ${myWin > 0 ? "" : "lost"}`}>
-      <div>
-        <div className="title">
-          {tableWon
-            ? "You won the table! 🏆"
-            : busted
-              ? "You're out of chips"
-              : myWin > 0
-                ? `You win ${chips(myWin)}`
-                : me.handBet > 0
-                  ? `You lose ${chips(me.handBet)}`
-                  : "Hand over"}
-          {myWin > 0 && net !== myWin && <span className="muted num"> (net {signed(net)})</span>}
+    <div className="action-bar result-banner">
+      <div className="result-row">
+        <div>
+          <div className="title">
+            {title}
+            {myWin > 0 && net !== myWin && <span className="muted num" style={{ fontSize: "1rem" }}> (profit {signed(net)})</span>}
+          </div>
+          {myHand && <div className="text-2">Your hand: {describeHand(myHand)}</div>}
         </div>
-        {lines.map((l) => (
-          <div key={l} className="text-2">{l}</div>
-        ))}
-        {myHand && myWin === 0 && <div className="muted">You had {describeHand(myHand)}</div>}
-      </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        {busted || tableWon ? (
-          <>
-            <button className="btn btn-primary" onClick={rebuy}>{busted ? "Rebuy & keep playing" : "Play on with refilled stacks"}</button>
-            <button className="btn" onClick={leaveTable}>Back to lobby</button>
-          </>
-        ) : (
-          <button className="btn btn-primary" onClick={dealNextHand} disabled={!canDeal(game)} autoFocus>
-            {settings.autoDeal ? "Deal now" : "Next hand"}
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "0.6rem" }}>
+          {busted || tableWon ? (
+            <>
+              <button className="btn btn-primary" onClick={rebuy}>{busted ? "Rebuy & keep playing" : "Play on with refilled stacks"}</button>
+              <button className="btn" onClick={leaveTable}>Main menu</button>
+            </>
+          ) : (
+            <button className="btn btn-primary" onClick={dealNextHand} disabled={!canDeal(game)} autoFocus>
+              {settings.autoDeal ? "Deal now ▶" : "Next hand ▶"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

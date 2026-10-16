@@ -8,7 +8,7 @@ const FOUR_COLOR = ["var(--suit-black)", "var(--suit-red)", "var(--suit-blue)", 
 interface Props {
   card?: Card;
   faceDown?: boolean;
-  size?: "md" | "sm" | "xs";
+  size?: "lg" | "md" | "sm" | "xs";
   highlight?: boolean;
   dim?: boolean;
 }
@@ -32,7 +32,7 @@ export function PlayingCard({ card, faceDown, size = "md", highlight, dim }: Pro
     >
       <span className="corner">
         {label}
-        {size === "xs" ? SUIT_SYMBOLS[suit] : ""}
+        <small>{SUIT_SYMBOLS[suit]}</small>
       </span>
       {size !== "xs" && <span className="pip">{SUIT_SYMBOLS[suit]}</span>}
     </div>

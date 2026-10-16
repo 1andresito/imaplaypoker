@@ -25,12 +25,25 @@ afterEach(() => {
 });
 
 describe("UI renders", () => {
-  it("renders the lobby and sits down", () => {
+  it("goes from the main menu through table setup to the table", () => {
     act(() => root.render(<App />));
+    const button = (text: string) => [...container.querySelectorAll("button")].find((b) => b.textContent?.includes(text))!;
+    expect(container.querySelector(".game-title")).not.toBeNull();
+    // Every main-menu screen opens and comes back.
+    for (const item of ["How to Play", "My Stats"]) {
+      act(() => button(item).click());
+      expect(container.querySelector(".menu-panel")).not.toBeNull();
+      act(() => button("Back").click());
+      expect(container.querySelector(".game-title")).not.toBeNull();
+    }
+    act(() => button("Play").click());
     expect(container.textContent).toContain("Texas Hold'em");
-    const sit = [...container.querySelectorAll("button")].find((b) => b.textContent === "Sit down")!;
+    // The opponent stepper changes the count.
+    const before = useGameStore.getState().setup.bots;
+    act(() => (container.querySelector('[aria-label="Fewer opponents"]') as HTMLButtonElement).click());
+    expect(useGameStore.getState().setup.bots).toBe(Math.max(1, before - 1));
     vi.useFakeTimers();
-    act(() => sit.click());
+    act(() => button("Deal me in").click());
     expect(container.querySelector(".felt")).not.toBeNull();
     expect(container.querySelectorAll(".seat")).toHaveLength(useGameStore.getState().setup.bots + 1);
   });

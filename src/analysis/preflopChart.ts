@@ -69,3 +69,14 @@ export function topPercent(hole: readonly Card[]): number {
   for (const row of chartGrid()) for (const cls of row) if (groupOfClass(cls) <= group) better += combos(cls);
   return (better / 1326) * 100;
 }
+
+/** Readable rank among starting hands: "top 3% of hands" or "weaker than most hands". */
+export function rankText(hole: readonly Card[]): string {
+  const top = Math.round(topPercent(hole));
+  return top <= 50 ? `top ${Math.max(1, top)}% of hands` : "weaker than most hands";
+}
+
+/** 1–5 stars for a starting hand, for a quick at-a-glance rating. */
+export function starRating(hole: readonly Card[]): number {
+  return [5, 5, 4, 4, 3, 3, 2, 2, 1][preflopGroup(hole) - 1];
+}

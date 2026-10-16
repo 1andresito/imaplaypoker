@@ -39,7 +39,26 @@ npm run tauri dev     # desktop window with hot reload
 npm run tauri build   # installer for the current OS (src-tauri/target/release/bundle)
 ```
 
-Installers for all three platforms are built by GitHub Actions (`.github/workflows/build.yml`) on every push to `main`. Pushing a tag like `v0.1.0` creates a draft release with the installers attached.
+Installers for all three platforms are built by GitHub Actions (`.github/workflows/build.yml`) on every push to `main`.
+
+## Releases and auto-update
+
+The desktop app checks for a newer version each time it starts. If one exists, a banner on the main menu offers to download it, install it, and restart. Settings and stats are kept. **Settings → About** shows the current version and has a **Check for updates** button.
+
+To publish a release:
+
+1. Bump the version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
+2. Commit, then tag and push: `git tag v0.3.0 && git push origin v0.3.0`.
+3. GitHub Actions builds every platform and publishes a release with the installers and `latest.json`, which is the feed installed copies check.
+
+Updates are signed, and the app only installs updates signed with the matching key. The public key is in `src-tauri/tauri.conf.json`. The private key must be stored as repository secrets (**Settings → Secrets and variables → Actions**):
+
+| Secret | Value |
+|---|---|
+| `TAURI_SIGNING_PRIVATE_KEY` | contents of the private key file (`~/.tauri/imaplaypoker.key`) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | its password (`~/.tauri/imaplaypoker.password.txt`) |
+
+Without them, releases still build, but they have no update files. Keep the private key safe: if it's lost, already-installed copies can't verify new updates, and users would need to reinstall by hand once.
 
 ## Logo and icons
 

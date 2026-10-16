@@ -3,6 +3,7 @@ import { play } from "../audio/sound";
 import { chartGrid, GROUP_LABELS, groupOfClass, handClass } from "../analysis/preflopChart";
 import type { Card } from "../engine/cards";
 import { type AssistLevel, type BotSpeed, useGameStore } from "../store/gameStore";
+import { AboutSection } from "./Updates";
 
 let lastOpenSound = 0;
 
@@ -193,6 +194,9 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             ))}
           </div>
         </div>
+
+        <h4>About</h4>
+        <AboutSection />
       </div>
     </Modal>
   );

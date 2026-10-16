@@ -11,6 +11,7 @@ import { ASSIST_LEVELS } from "./Modals";
 import { PlayingCard } from "./PlayingCard";
 import { CategoryBars, StatBlock } from "./StatsPanel";
 import { STYLE_COLORS } from "./Table";
+import { UpdateBanner } from "./Updates";
 
 const LOGO_SVG = chipStackSvg();
 
@@ -62,6 +63,7 @@ function MenuScene({ children, onSettings }: { children: ReactNode; onSettings: 
         ))}
       </div>
       <CornerControls onSettings={onSettings} />
+      <UpdateBanner />
       {children}
     </div>
   );

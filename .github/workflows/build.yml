@@ -22,6 +22,9 @@ jobs:
 
   build:
     needs: test
+    # Needed to create releases and upload installers.
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -53,17 +56,36 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - run: npm ci
-      # On a version tag (e.g. v0.1.0) this creates a draft GitHub release with the
-      # installers attached; otherwise the installers are uploaded as workflow artifacts.
+      # Updates are signed with the key in the TAURI_SIGNING_PRIVATE_KEY secret. Without
+      # it, build normally but skip the update files (installers still work).
+      - name: Check for update signing key
+        id: signing
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "args=" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=--config src-tauri/tauri.no-updater.conf.json" >> "$GITHUB_OUTPUT"
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY is not set, so this build has no auto-update files."
+          fi
+      # On a version tag (e.g. v0.2.0) this publishes a GitHub release with the installers
+      # and latest.json, which installed copies of the game check for updates.
+      # Otherwise the installers are uploaded as workflow artifacts.
       - uses: tauri-apps/tauri-action@v0
         id: tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ steps.signing.outputs.args }}
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseName: "imaplaypoker ${{ github.ref_name }}"
-          releaseDraft: true
+          releaseBody: "Download the installer for your system below. If you already have imaplaypoker 0.2.0 or newer, it will offer this update automatically."
+          releaseDraft: false
+          includeUpdaterJson: true
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.platform }}-${{ strategy.job-index }}

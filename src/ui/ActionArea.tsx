@@ -5,6 +5,8 @@ import { describeHand } from "../engine/handRanks";
 import type { GameState, PlayerAction } from "../engine/types";
 import { type AssistLevel, canDeal, HUMAN_ID, useGameStore } from "../store/gameStore";
 import { chips, signed } from "./format";
+import { gameHotkey } from "./hotkeys";
+import { Icon } from "./icons";
 
 interface Props {
   game: GameState;
@@ -41,9 +43,9 @@ export function ActionArea({ game, advice, assist }: Props) {
 function CoachBox({ advice }: { advice: Advice }) {
   return (
     <div className="coach-box" role="status">
-      <div className="icon" aria-hidden>🎓</div>
+      <div className="icon"><Icon name="coach" size="1.9rem" /></div>
       <div>
-        <div className="who">Coach says</div>
+        <div className="who">Coach</div>
         <div className="reason">
           <strong>{advice.headline}.</strong>
           {advice.reason}
@@ -85,11 +87,10 @@ function ActionBar({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
-      const k = e.key.toLowerCase();
-      if (k === "f" && legal.canFold) fold();
-      else if (k === "c") checkCall();
-      else if (k === "r") raise();
+      const key = gameHotkey(e);
+      if (key === "fold" && legal.canFold) fold();
+      else if (key === "call") checkCall();
+      else if (key === "raise") raise();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -102,7 +103,7 @@ function ActionBar({
   return (
     <div className="action-bar my-turn">
       <div className="turn-banner">
-        <span className="title">Your turn!</span>
+        <span className="title">Your move</span>
         <span className="facts num">
           {legal.canCheck ? "No bet to call" : `To call: ${chips(legal.toCall)}`} · Pot: {chips(pot)} · Your chips: {chips(me.stack)}
         </span>
@@ -166,7 +167,7 @@ function ResultBanner({ game }: { game: GameState }) {
   const tableWon = !busted && game.players.every((p) => p.isHuman || p.stack === 0);
 
   const title = tableWon
-    ? "You won the table! 🏆"
+    ? "You cleaned out the table"
     : busted
       ? "You're out of chips"
       : myWin > 0
@@ -182,7 +183,7 @@ function ResultBanner({ game }: { game: GameState }) {
       <div className="result-row">
         <div>
           <div className="title">
-            {title}
+            {tableWon && <Icon name="trophy" size="1.2em" />} {title}
             {myWin > 0 && net !== myWin && <span className="muted num" style={{ fontSize: "1rem" }}> (profit {signed(net)})</span>}
           </div>
           {myHand && <div className="text-2">Your hand: {describeHand(myHand)}</div>}
@@ -195,7 +196,7 @@ function ResultBanner({ game }: { game: GameState }) {
             </>
           ) : (
             <button className="btn btn-primary" onClick={dealNextHand} disabled={!canDeal(game)} autoFocus>
-              {settings.autoDeal ? "Deal now ▶" : "Next hand ▶"}
+              {settings.autoDeal ? "Deal now" : "Next hand"} <Icon name="play" size="0.9em" />
             </button>
           )}
         </div>

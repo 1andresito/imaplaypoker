@@ -7,12 +7,17 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Third-party actions are pinned to commit SHAs: a moved tag can't change what runs
+# in a job that holds the release token and the update signing key.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -39,15 +44,15 @@ jobs:
             args: ""
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           targets: ${{ startsWith(matrix.platform, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri -> target
       - name: Install Linux dependencies
@@ -58,11 +63,12 @@ jobs:
       - run: npm ci
       # Updates are signed with the key in the TAURI_SIGNING_PRIVATE_KEY secret. Without
       # it, build normally but skip the update files (installers still work).
+      # Pull requests never get the key: their code hasn't been reviewed yet.
       - name: Check for update signing key
         id: signing
         shell: bash
         env:
-          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KEY: ${{ github.event_name != 'pull_request' && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
         run: |
           if [ -n "$KEY" ]; then
             echo "args=" >> "$GITHUB_OUTPUT"
@@ -73,12 +79,12 @@ jobs:
       # On a version tag (e.g. v0.2.0) this publishes a GitHub release with the installers
       # and latest.json, which installed copies of the game check for updates.
       # Otherwise the installers are uploaded as workflow artifacts.
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         id: tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ github.event_name != 'pull_request' && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         with:
           args: ${{ matrix.args }} ${{ steps.signing.outputs.args }}
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
@@ -97,7 +103,7 @@ jobs:
           out=$(cargo build --release ${{ matrix.args }} 2>&1 | grep -E -A15 '^error' | head -80 \
             | awk '{ gsub(/%/, "%25"); printf "%s%%0A", $0 }' || true)
           echo "::error title=Rust build error::${out:-No Rust error found; see the tauri-action step log.}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: installers-${{ matrix.platform }}-${{ strategy.job-index }}
           path: |

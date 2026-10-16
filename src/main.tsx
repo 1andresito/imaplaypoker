@@ -4,6 +4,13 @@ import { App } from "./App";
 import { initGameSounds } from "./audio/gameSounds";
 import { useGameStore } from "./store/gameStore";
 import { isDesktopApp, useUpdateStore } from "./store/updateStore";
+// Fonts are bundled (latin subset only): the desktop app works offline and its CSP blocks font CDNs.
+import "@fontsource/playfair-display/latin-700.css";
+import "@fontsource/playfair-display/latin-700-italic.css";
+import "@fontsource/playfair-display/latin-900.css";
+import "@fontsource/source-sans-3/latin-400.css";
+import "@fontsource/source-sans-3/latin-600.css";
+import "@fontsource/source-sans-3/latin-700.css";
 import "./styles.css";
 
 // Dev conveniences: ?autoplay skips the lobby; ?autoplay=showdown also checks/calls

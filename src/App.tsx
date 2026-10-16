@@ -4,7 +4,10 @@ import { ActionArea } from "./ui/ActionArea";
 import { HandPanel } from "./ui/HandPanel";
 import { HistoryPanel } from "./ui/HistoryPanel";
 import { HowToPlay, Logo, MainMenu, StatsScreen, TableSetup } from "./ui/Menu";
-import { ASSIST_LEVELS, PreflopChartModal, SettingsModal } from "./ui/Modals";
+import { ASSIST_LEVELS } from "./ui/constants";
+import { Icon } from "./ui/icons";
+import { PreflopChartModal, SettingsModal } from "./ui/Modals";
+import { SoundToggles } from "./ui/SoundToggles";
 import { StatsPanel } from "./ui/StatsPanel";
 import { Table } from "./ui/Table";
 import { UpdateDialog } from "./ui/Updates";
@@ -16,22 +19,29 @@ export function App() {
   const screen = useGameStore((s) => s.screen);
   const [showSettings, setShowSettings] = useState(false);
   const largeText = useGameStore((s) => s.settings.largeText);
+  const reduceMotion = useGameStore((s) => s.settings.reduceMotion);
   useEffect(() => {
     document.documentElement.classList.toggle("large-text", largeText);
   }, [largeText]);
+  useEffect(() => {
+    document.documentElement.classList.toggle("reduce-motion", reduceMotion);
+  }, [reduceMotion]);
   const openSettings = () => setShowSettings(true);
   return (
     <div className="app">
-      {screen === "menu" && <MainMenu onSettings={openSettings} />}
-      {screen === "setup" && <TableSetup onSettings={openSettings} />}
-      {screen === "howto" && <HowToPlay onSettings={openSettings} />}
-      {screen === "stats" && <StatsScreen onSettings={openSettings} />}
-      {screen === "table" && (
-        <>
-          <TopBar onSettings={openSettings} />
-          <TableScreen />
-        </>
-      )}
+      {/* Keyed so every screen change plays the entrance transition. */}
+      <div key={screen} className={`screen screen-${screen}`}>
+        {screen === "menu" && <MainMenu onSettings={openSettings} />}
+        {screen === "setup" && <TableSetup onSettings={openSettings} />}
+        {screen === "howto" && <HowToPlay onSettings={openSettings} />}
+        {screen === "stats" && <StatsScreen onSettings={openSettings} />}
+        {screen === "table" && (
+          <>
+            <TopBar onSettings={openSettings} />
+            <TableScreen />
+          </>
+        )}
+      </div>
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       <UpdateDialog />
     </div>
@@ -39,46 +49,37 @@ export function App() {
 }
 
 function TopBar({ onSettings }: { onSettings: () => void }) {
-  const { settings, updateSettings, leaveTable, game } = useGameStore();
+  const assist = useGameStore((s) => s.settings.assist);
+  const updateSettings = useGameStore((s) => s.updateSettings);
+  const leaveTable = useGameStore((s) => s.leaveTable);
+  const game = useGameStore((s) => s.game);
   return (
     <header className="topbar">
       <div className="brand">
-        <Logo size="1.9rem" /> imaplaypoker
+        <Logo size="2rem" /> imaplay<span>poker</span>
       </div>
-      {game && <span className="hand-info num">Hand #{game.handNumber} · Blinds {game.config.smallBlind}/{game.config.bigBlind}</span>}
+      {game && (
+        <span className="hand-info num">
+          Hand {game.handNumber} <span className="sep" /> Blinds {game.config.smallBlind}/{game.config.bigBlind}
+        </span>
+      )}
       <div className="spacer" />
       <div>
         <span className="label">Help</span>
         <div className="segmented">
           {ASSIST_LEVELS.map((l) => (
-            <button key={l.id} aria-pressed={settings.assist === l.id} title={l.description} onClick={() => updateSettings({ assist: l.id })}>
+            <button key={l.id} aria-pressed={assist === l.id} title={l.description} onClick={() => updateSettings({ assist: l.id })}>
               {l.name}
             </button>
           ))}
         </div>
       </div>
-      <button
-        className={`btn btn-sm sound-btn ${settings.music ? "on" : ""}`}
-        role="switch"
-        aria-checked={settings.music}
-        onClick={() => updateSettings({ music: !settings.music })}
-        title={settings.music ? "Turn music off" : "Play background jazz"}
-      >
-        {settings.music ? "♫ Music on" : "♫ Music off"}
+      <SoundToggles />
+      <button className="btn btn-sm icon-btn" onClick={onSettings} aria-label="Settings" title="Settings">
+        <Icon name="gear" />
       </button>
-      <button
-        className={`btn btn-sm sound-btn ${settings.soundEffects ? "on" : ""}`}
-        role="switch"
-        aria-checked={settings.soundEffects}
-        onClick={() => updateSettings({ soundEffects: !settings.soundEffects })}
-        title={settings.soundEffects ? "Mute sound effects" : "Turn sound effects on"}
-        aria-label="Sound effects"
-      >
-        {settings.soundEffects ? "🔊" : "🔇"}
-      </button>
-      <button className="btn btn-sm" onClick={onSettings}>⚙ Settings</button>
       <button className="btn btn-sm" onClick={leaveTable} title="Leave the table and go back to the main menu">
-        ☰ Menu
+        <Icon name="door" /> Leave table
       </button>
     </header>
   );

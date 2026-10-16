@@ -8,7 +8,7 @@ export function UpdateBanner() {
   return (
     <button className="update-banner" onClick={() => openDialog(true)}>
       <span className="update-dot" aria-hidden />
-      Version {version} is available. <strong>Update now ▶</strong>
+      Version {version} is available. <strong>Update now</strong>
     </button>
   );
 }

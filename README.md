@@ -14,16 +14,58 @@ A desktop poker game for **Windows, macOS, and Linux** that teaches you while yo
   | Guided | Coach plus the suggested button highlighted, bet size pre-filled, and a starting-hand chart |
 
 - **Game-style menus:** a main menu (Play, How to Play, My Stats, Settings) and a one-screen table setup with tiles for opponents, their style, stakes, chips, and help level.
+- **Multiplayer (desktop app):** host a table on your own computer for up to 8 seats (you, friends, and bots), or join someone else's. See [Multiplayer](#multiplayer).
 - **Sound:** synthesized effects for cards, chips, checks and folds, plus interface sounds for hovering, clicking, tabs, toggles, sliders and dialogs. Optional jazz (off by default; turn it on with the ♫ button), looped seamlessly: the player trims the track's ending fade and silence and crossfades each pass into the next (`src/audio/musicLoop.ts`).
 
 Omaha, Five-Card Draw, and Seven-Card Stud are planned. The engine's `Variant` interface (`src/engine/variants/`) is where they plug in.
+
+## Multiplayer
+
+One player hosts and their computer runs the game. No server or account is needed.
+
+**Hosting:** Main menu → **Multiplayer** → **Host a game** → **Open room**. You get a room code like `K7QM-2XPA`. In the lobby you choose:
+- bots, and their style
+- blinds and starting chips
+- a turn timer (off, 20, 30 or 60 s; when time runs out, the player checks if they can, otherwise folds)
+- whether learning helpers are allowed
+
+The table holds at most 8 seats in total. You can kick players and lock the room. Press **Start game** when everyone is in.
+
+**Joining:**
+- **Same Wi-Fi:** rooms on the network show up under **Join a game**. Pick one, type the code, and join.
+- **Over the internet:** the host forwards TCP port `47820` (changeable under *Advanced*) on their router to their computer. Then you type the host's public IP and the code.
+
+The first time you host, your OS may ask whether to let the app through the firewall. Allow it on private networks.
+
+If a player's connection drops mid-game, their seat stays: the turn timer checks or folds for them, and **Reconnect** puts them back in the same seat.
+
+### How it's kept safe
+
+- **The room code is never sent over the network.** Players prove they know it with a password-authenticated key exchange (SPAKE2). Someone recording the traffic can't recover the code or try guesses offline.
+- **Everything is encrypted and tamper-proof.** Each connection uses its own keys (ChaCha20-Poly1305). Altered or replayed messages drop the connection.
+- **Guessing is cut off.** An address is ignored for the rest of the session after 5 wrong codes. After 50 wrong codes in total, the room stops accepting new players until the host makes a new code.
+- **Limits:**
+  - handshakes must finish within 10 s, with at most 16 in progress at once
+  - messages from players are capped at 16 KiB and about 20 per second
+  - players are refused once all 8 seats are taken
+- **Cheating is blocked.**
+  - The host's computer is the only one that runs the game.
+  - Players only send moves, and each move is checked: it must be that player's turn, the current hand, and a legal move. Repeated messages are ignored.
+  - Each player receives the table with the deck removed and other players' cards hidden. Cards are revealed only at showdown.
+- **Seats can't be stolen.** Reconnecting needs a random per-seat token, and kicked players' tokens stop working.
+- **Discovery reveals nothing secret.** LAN discovery only answers local addresses and shares just the room name, seat count and port. Replies are smaller than requests, so the host can't be used to flood someone else with traffic.
+- **The game port is open only while you host.**
+
+"Helpers off" is a table rule: a modified copy of the game could still work out odds from the player's own cards. No setting lets anyone see another player's cards.
+
+The networking code is in `src-tauri/src/net/` (handshake, encryption, limits) and `src/net/` (protocol, validation, host and player sessions).
 
 ## Run it
 
 ```bash
 npm install
 npm run dev        # play in the browser at http://localhost:1420
-npm test           # engine, analysis, bot, store and UI tests
+npm test           # engine, analysis, bot, store, multiplayer and UI tests
 ```
 
 ### As a desktop app (Tauri)

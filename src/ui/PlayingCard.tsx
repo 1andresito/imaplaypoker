@@ -16,7 +16,8 @@ interface Props {
 export function PlayingCard({ card, faceDown, size = "md", highlight, dim }: Props) {
   const fourColor = useGameStore((s) => s.settings.fourColorDeck);
   const sizeClass = size === "md" ? "" : size;
-  if (faceDown || card === undefined) {
+  // Negative cards are ones the host hid from you (multiplayer).
+  if (faceDown || card === undefined || card < 0) {
     return <div className={`card back ${sizeClass}`} aria-label="Face-down card" />;
   }
   const rank = rankOf(card);

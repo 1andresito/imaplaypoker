@@ -56,6 +56,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - run: npm ci
+      # Multiplayer networking: handshake, encryption, limits and LAN discovery.
+      - name: Rust tests
+        if: startsWith(matrix.platform, 'ubuntu')
+        working-directory: src-tauri
+        run: |
+          mkdir -p ../dist
+          cargo test
       # Updates are signed with the key in the TAURI_SIGNING_PRIVATE_KEY secret. Without
       # it, build normally but skip the update files (installers still work).
       - name: Check for update signing key

@@ -1,9 +1,10 @@
+import { useEffect, useState } from "react";
 import { BOT_PROFILES } from "../ai/profiles";
 import type { Card } from "../engine/cards";
 import { potTotal } from "../engine/gameState";
 import { categoryName } from "../engine/handRanks";
 import type { GameState, HandEvent, PlayerState } from "../engine/types";
-import { HUMAN_ID } from "../store/gameStore";
+import { useGameStore } from "../store/gameStore";
 import { chips } from "./format";
 import { PlayingCard } from "./PlayingCard";
 
@@ -55,7 +56,11 @@ function lastAction(history: HandEvent[], player: PlayerState): { text: string; 
 
 export function Table({ game, highlight }: Props) {
   const { players, outcome } = game;
-  const humanIndex = players.findIndex((p) => p.id === HUMAN_ID);
+  const myId = useGameStore((s) => s.myId);
+  const away = useGameStore((s) => s.away);
+  const turnEndsAt = useGameStore((s) => s.turnEndsAt);
+  const turnSeconds = useGameStore((s) => s.room?.turnSeconds ?? 0);
+  const humanIndex = Math.max(0, players.findIndex((p) => p.id === myId));
   const done = game.phase === "complete";
 
   return (
@@ -85,7 +90,9 @@ export function Table({ game, highlight }: Props) {
       {players.map((p, i) => {
         const rel = (i - humanIndex + players.length) % players.length;
         const pos = seatPosition(rel, players.length);
-        const isHuman = p.id === HUMAN_ID;
+        // "isHuman" here means "you": the seat at the bottom with big cards.
+        const isHuman = p.id === myId;
+        const isAway = away.includes(p.id);
         // Bets sit between the seat and the center of the table; yours sits beside your cards.
         const betPos = isHuman ? { x: 34, y: 82 } : { x: 50 + (pos.x - 50) * 0.62, y: 50 + (pos.y - 50) * 0.62 };
         const shownHand = done && outcome?.showdown && !p.folded ? outcome.hands[p.id] : undefined;
@@ -117,17 +124,17 @@ export function Table({ game, highlight }: Props) {
               <div className="hole">
                 {!p.busted &&
                   (isHuman || !p.folded) &&
-                  p.hole.map((c) =>
+                  p.hole.map((c, j) =>
                     showCards ? (
                       <PlayingCard
-                        key={c}
+                        key={j}
                         card={c}
                         size={isHuman ? "lg" : "sm"}
                         highlight={highlight.includes(c)}
                         dim={p.folded}
                       />
                     ) : (
-                      <PlayingCard key={c} faceDown size="sm" />
+                      <PlayingCard key={j} faceDown size="sm" />
                     ),
                   )}
               </div>
@@ -142,9 +149,10 @@ export function Table({ game, highlight }: Props) {
                   </div>
                 )}
                 {i === game.dealer && <div className="dealer-btn" title="Dealer button">D</div>}
+                {toAct && turnEndsAt !== null && turnSeconds > 0 && <TurnClock endsAt={turnEndsAt} totalMs={turnSeconds * 1000} />}
                 <div
                   className="avatar"
-                  style={{ background: isHuman ? "var(--accent)" : STYLE_COLORS[p.botProfile ?? "tag"] }}
+                  style={{ background: isHuman ? "var(--accent)" : p.isHuman ? "var(--info)" : STYLE_COLORS[p.botProfile ?? "tag"] }}
                   aria-hidden
                 >
                   {isHuman ? "★" : p.name[0]}
@@ -154,7 +162,11 @@ export function Table({ game, highlight }: Props) {
                   <span className="seat-stack num">{p.busted ? "Out" : chips(p.stack)}</span>
                 </div>
               </div>
-              {profile && <div className="seat-style">{profile.name}</div>}
+              {isAway ? (
+                <div className="seat-style away" title="Disconnected. Their turns are checked or folded until they come back.">Away</div>
+              ) : (
+                profile && <div className="seat-style">{profile.name}</div>
+              )}
             </div>
             {!done && p.streetBet > 0 && (
               <div className="bet-chip num" style={{ left: `${betPos.x}%`, top: `${betPos.y}%` }}>
@@ -169,15 +181,32 @@ export function Table({ game, highlight }: Props) {
   );
 }
 
+/** Shrinking bar under the acting player's name while their turn timer runs. */
+function TurnClock({ endsAt, totalMs }: { endsAt: number; totalMs: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const left = Math.max(0, endsAt - now);
+  const frac = Math.min(1, left / totalMs);
+  return (
+    <div className={`turn-clock ${left < 6000 ? "low" : ""}`} role="timer" aria-label={`${Math.ceil(left / 1000)} seconds left`}>
+      <div style={{ width: `${frac * 100}%` }} />
+    </div>
+  );
+}
+
 function FeltResult({ game }: { game: GameState }) {
   const outcome = game.outcome!;
-  const name = (id: string) => (id === HUMAN_ID ? "You" : game.players.find((p) => p.id === id)!.name);
-  const myWin = outcome.payouts[HUMAN_ID] ?? 0;
+  const myId = useGameStore((s) => s.myId);
+  const name = (id: string) => (id === myId ? "You" : game.players.find((p) => p.id === id)!.name);
+  const myWin = outcome.payouts[myId] ?? 0;
   const main = outcome.pots[0];
   const winners = main.winners.map(name).join(" & ");
   const big =
     myWin > 0
-      ? main.winners.length > 1 && main.winners.includes(HUMAN_ID)
+      ? main.winners.length > 1 && main.winners.includes(myId)
         ? `Split pot! You get ${chips(myWin)}`
         : `You win ${chips(myWin)}!`
       : `${winners} win${main.winners.length > 1 ? "" : "s"} ${chips(main.amount)}`;

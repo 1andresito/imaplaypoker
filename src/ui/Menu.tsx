@@ -5,6 +5,7 @@ import { HAND_RANKS } from "../engine/handRanks";
 import { VARIANTS } from "../engine/variants";
 import { rate } from "../stats/tracker";
 import { useGameStore } from "../store/gameStore";
+import { isDesktopApp } from "../store/updateStore";
 import { chips, pct, signed } from "./format";
 import { chipStackSvg } from "./logo";
 import { ASSIST_LEVELS } from "./Modals";
@@ -52,7 +53,7 @@ function CornerControls({ onSettings }: { onSettings: () => void }) {
 }
 
 /** Shared backdrop for every menu screen: felt, vignette, and a few scattered cards. */
-function MenuScene({ children, onSettings }: { children: ReactNode; onSettings: () => void }) {
+export function MenuScene({ children, onSettings }: { children: ReactNode; onSettings: () => void }) {
   return (
     <div className="menu-scene">
       <div className="scene-cards" aria-hidden>
@@ -69,11 +70,11 @@ function MenuScene({ children, onSettings }: { children: ReactNode; onSettings: 
   );
 }
 
-function ScreenHeader({ title }: { title: string }) {
+export function ScreenHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   const goTo = useGameStore((s) => s.goTo);
   return (
     <div className="screen-header">
-      <button className="back-btn" onClick={() => goTo("menu")}>◀ Back</button>
+      <button className="back-btn" onClick={onBack ?? (() => goTo("menu"))}>◀ Back</button>
       <h1>{title}</h1>
     </div>
   );
@@ -97,6 +98,9 @@ export function MainMenu({ onSettings }: { onSettings: () => void }) {
           <button className="menu-btn primary" onClick={() => goTo("setup")} autoFocus>
             ▶ Play
           </button>
+          {isDesktopApp() && (
+            <button className="menu-btn" onClick={() => goTo("multiplayer")}>👥 Multiplayer</button>
+          )}
           <button className="menu-btn" onClick={() => goTo("howto")}>How to Play</button>
           <button className="menu-btn" onClick={() => goTo("stats")}>My Stats</button>
           <button className="menu-btn" onClick={onSettings}>Settings</button>
@@ -119,21 +123,21 @@ const UPCOMING = [
   { id: "stud", name: "Seven-Card Stud" },
 ];
 
-const STAKES = [
+export const STAKES = [
   { bb: 10, label: "Penny", icon: "🪙" },
   { bb: 20, label: "Casual", icon: "💵" },
   { bb: 50, label: "High", icon: "💰" },
   { bb: 100, label: "VIP", icon: "💎" },
 ];
 
-const STACKS = [
+export const STACKS = [
   { bbs: 50, label: "Short", desc: "Fast & swingy" },
   { bbs: 100, label: "Standard", desc: "The classic" },
   { bbs: 200, label: "Deep", desc: "Room to play" },
 ];
 
 
-function Tile({ selected, onClick, children, disabled, label }: { selected?: boolean; onClick?: () => void; children: ReactNode; disabled?: boolean; label?: string }) {
+export function Tile({ selected, onClick, children, disabled, label }: { selected?: boolean; onClick?: () => void; children: ReactNode; disabled?: boolean; label?: string }) {
   return (
     <button className="tile" aria-pressed={selected} onClick={onClick} disabled={disabled} aria-label={label}>
       {selected && <span className="tile-check" aria-hidden>✓</span>}

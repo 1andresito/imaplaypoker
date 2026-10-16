@@ -1,10 +1,10 @@
 import type { GameState } from "../engine/types";
-import { HUMAN_ID, useGameStore } from "../store/gameStore";
+import { useGameStore } from "../store/gameStore";
 import { configureEffects, configureMusic, play, unlockAudio } from "./sound";
 import { initUiSounds } from "./uiSounds";
 
 /** Plays sounds for whatever happened between two game states. */
-function soundsFor(prev: GameState | null, next: GameState | null) {
+function soundsFor(prev: GameState | null, next: GameState | null, myId: string) {
   if (!next) return;
   const newHand = !prev || prev.handNumber !== next.handNumber;
   const events = next.history.slice(newHand ? 0 : prev!.history.length);
@@ -42,16 +42,16 @@ function soundsFor(prev: GameState | null, next: GameState | null) {
   }
 
   if (next.phase === "complete" && prev?.phase !== "complete" && next.outcome) {
-    const me = next.players.find((p) => p.id === HUMAN_ID);
-    const iWon = (next.outcome.payouts[HUMAN_ID] ?? 0) > 0;
+    const me = next.players.find((p) => p.id === myId);
+    const iWon = (next.outcome.payouts[myId] ?? 0) > 0;
     if (iWon) play("win", t + 0.3);
     else if (me && !me.folded && me.handBet > 0) play("lose", t + 0.3);
     else play("chips", t + 0.3);
     return;
   }
 
-  const myTurn = next.phase === "betting" && next.players[next.toAct]?.id === HUMAN_ID;
-  const wasMyTurn = !newHand && prev!.phase === "betting" && prev!.players[prev!.toAct]?.id === HUMAN_ID;
+  const myTurn = next.phase === "betting" && next.players[next.toAct]?.id === myId;
+  const wasMyTurn = !newHand && prev!.phase === "betting" && prev!.players[prev!.toAct]?.id === myId;
   if (myTurn && !wasMyTurn) play("yourTurn", t + 0.2);
 }
 
@@ -66,7 +66,7 @@ export function initGameSounds(): void {
 
   useGameStore.subscribe((state, prev) => {
     if (state.settings !== prev.settings) apply();
-    if (state.game !== prev.game) soundsFor(prev.game, state.game);
+    if (state.game !== prev.game) soundsFor(prev.game, state.game, state.myId);
   });
 
   initUiSounds();

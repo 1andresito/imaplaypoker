@@ -3,7 +3,8 @@ import type { Advice } from "../analysis/advisor";
 import { legalActions, potTotal } from "../engine/gameState";
 import { describeHand } from "../engine/handRanks";
 import type { GameState, PlayerAction } from "../engine/types";
-import { type AssistLevel, canDeal, HUMAN_ID, useGameStore } from "../store/gameStore";
+import { useClientStore } from "../net/clientSession";
+import { type AssistLevel, canDeal, useGameStore } from "../store/gameStore";
 import { chips, signed } from "./format";
 
 interface Props {
@@ -14,11 +15,14 @@ interface Props {
 
 export function ActionArea({ game, advice, assist }: Props) {
   const humanAct = useGameStore((s) => s.humanAct);
-  const myTurn = game.phase === "betting" && game.players[game.toAct].id === HUMAN_ID;
+  const myId = useGameStore((s) => s.myId);
+  const notice = useClientStore((s) => s.notice);
+  const myTurn = game.phase === "betting" && game.players[game.toAct].id === myId;
   const showCoach = advice && (assist === "coach" || assist === "guided");
 
   return (
     <div className="action-area">
+      {notice && <div className="net-notice" role="alert">{notice}</div>}
       {myTurn && showCoach && <CoachBox advice={advice} />}
       {game.phase === "complete" ? (
         <ResultBanner game={game} />
@@ -28,7 +32,7 @@ export function ActionArea({ game, advice, assist }: Props) {
         <div className="action-bar">
           <div className="waiting">
             <span className="think"><i /><i /><i /></span>
-            {game.players.find((p) => p.id === HUMAN_ID)?.folded
+            {game.players.find((p) => p.id === myId)?.folded
               ? "You folded. Watch how the hand plays out."
               : `${game.players[game.toAct]?.name} is thinking…`}
           </div>
@@ -156,14 +160,15 @@ function ActionBar({
 }
 
 function ResultBanner({ game }: { game: GameState }) {
-  const { dealNextHand, rebuy, leaveTable, settings } = useGameStore();
+  const { dealNextHand, rebuy, leaveTable, settings, mode, myId } = useGameStore();
   const outcome = game.outcome!;
-  const me = game.players.find((p) => p.id === HUMAN_ID)!;
-  const myWin = outcome.payouts[HUMAN_ID] ?? 0;
+  const me = game.players.find((p) => p.id === myId)!;
+  const myWin = outcome.payouts[myId] ?? 0;
   const net = myWin - me.handBet;
-  const myHand = outcome.hands[HUMAN_ID];
+  const myHand = outcome.hands[myId];
   const busted = me.stack === 0;
-  const tableWon = !busted && game.players.every((p) => p.isHuman || p.stack === 0);
+  const tableWon = !busted && game.players.every((p) => p.id === myId || p.stack === 0);
+  const someoneBusted = game.players.some((p) => p.stack === 0);
 
   const title = tableWon
     ? "You won the table! 🏆"
@@ -187,8 +192,23 @@ function ResultBanner({ game }: { game: GameState }) {
           </div>
           {myHand && <div className="text-2">Your hand: {describeHand(myHand)}</div>}
         </div>
-        <div style={{ display: "flex", gap: "0.6rem" }}>
-          {busted || tableWon ? (
+        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+          {mode === "client" ? (
+            <span className="text-2">
+              {busted ? "You're out of chips. The host can refill everyone's stack." : "Next hand starts in a moment…"}
+            </span>
+          ) : mode === "host" ? (
+            <>
+              {(someoneBusted || !canDeal(game, mode, myId)) && (
+                <button className="btn" onClick={rebuy} title="Give every player with no chips a fresh starting stack">
+                  Refill empty stacks
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={dealNextHand} disabled={!canDeal(game, mode, myId)}>
+                Deal now ▶
+              </button>
+            </>
+          ) : busted || tableWon ? (
             <>
               <button className="btn btn-primary" onClick={rebuy}>{busted ? "Rebuy & keep playing" : "Play on with refilled stacks"}</button>
               <button className="btn" onClick={leaveTable}>Main menu</button>

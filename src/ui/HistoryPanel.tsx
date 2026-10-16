@@ -1,14 +1,15 @@
 import type { GameState, HandEvent } from "../engine/types";
-import { HUMAN_ID } from "../store/gameStore";
+import { useGameStore } from "../store/gameStore";
 import { chips } from "./format";
 import { CardRow } from "./PlayingCard";
 
 const STREET = { preflop: "Pre-flop", flop: "Flop", turn: "Turn", river: "River" } as const;
 
 export function HistoryPanel({ game }: { game: GameState }) {
+  const myId = useGameStore((s) => s.myId);
   const name = (id: string) => game.players.find((p) => p.id === id)?.name ?? id;
   const line = (e: HandEvent, i: number) => {
-    const me = "playerId" in e && e.playerId === HUMAN_ID;
+    const me = "playerId" in e && e.playerId === myId;
     const who = <span className={me ? "me" : ""}>{"playerId" in e ? name(e.playerId) : ""}</span>;
     switch (e.kind) {
       case "blind":
@@ -57,7 +58,7 @@ export function HistoryPanel({ game }: { game: GameState }) {
           <div className="history">
             {shown.map((p) => (
               <div key={p.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span className={p.id === HUMAN_ID ? "me" : ""} style={{ minWidth: 60 }}>{p.name}</span>
+                <span className={p.id === myId ? "me" : ""} style={{ minWidth: 60 }}>{p.name}</span>
                 <CardRow cards={p.hole} />
               </div>
             ))}

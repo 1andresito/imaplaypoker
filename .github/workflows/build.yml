@@ -86,6 +86,17 @@ jobs:
           releaseBody: "Download the installer for your system below. If you already have imaplaypoker 0.2.0 or newer, it will offer this update automatically."
           releaseDraft: false
           includeUpdaterJson: true
+      # Build logs need a GitHub login, but annotations are public: surface the Rust
+      # error on the run's summary page so failures can be diagnosed from anywhere.
+      - name: Show Rust build error
+        if: failure()
+        shell: bash
+        working-directory: src-tauri
+        run: |
+          # Annotations are one line: escape % and join lines with %0A.
+          out=$(cargo build --release ${{ matrix.args }} 2>&1 | grep -E -A15 '^error' | head -80 \
+            | awk '{ gsub(/%/, "%25"); printf "%s%%0A", $0 }' || true)
+          echo "::error title=Rust build error::${out:-No Rust error found; see the tauri-action step log.}"
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.platform }}-${{ strategy.job-index }}

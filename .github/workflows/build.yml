@@ -123,6 +123,8 @@ jobs:
             - **Fedora, RHEL, openSUSE:** `_Fedora.rpm`
             - **Any other Linux:** `_Linux-AppImage.AppImage`
 
+            **First launch on Mac:** the app isn't notarized by Apple, so macOS says it "could not verify" imaplaypoker. Click **Done**, then open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once. (Or run `xattr -cr /Applications/imaplaypoker.app` in Terminal.)
+
             Ignore the `.sig`, `.tar.gz` and `latest.json` files: they're for automatic updates. If you already have imaplaypoker 0.2.0 or newer, it will offer this update automatically.
           releaseDraft: false
           includeUpdaterJson: true

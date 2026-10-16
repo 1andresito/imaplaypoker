@@ -1,33 +1,75 @@
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { play } from "../audio/sound";
 import { chartGrid, GROUP_LABELS, groupOfClass, handClass } from "../analysis/preflopChart";
 import type { Card } from "../engine/cards";
-import { type AssistLevel, type BotSpeed, useGameStore } from "../store/gameStore";
+import { BOT_SPEEDS, useGameStore } from "../store/gameStore";
+import { ASSIST_LEVELS } from "./constants";
+import { Icon } from "./icons";
 import { AboutSection } from "./Updates";
 
 let lastOpenSound = 0;
 
+const FOCUSABLE = 'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
 export function Modal({ title, onClose: onCloseProp, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const reduceMotion = useGameStore((s) => s.settings.reduceMotion);
+  const [closing, setClosing] = useState(false);
+  const dialog = useRef<HTMLDivElement>(null);
   const onClose = () => {
+    if (closing) return;
     play("close");
-    onCloseProp();
+    if (reduceMotion) onCloseProp();
+    else {
+      setClosing(true);
+      setTimeout(onCloseProp, 160);
+    }
   };
   useEffect(() => {
     // Throttled: React's dev mode mounts effects twice.
     if (performance.now() - lastOpenSound > 200) play("open");
     lastOpenSound = performance.now();
+    // Move focus into the dialog, and give it back to whatever opened it.
+    const opener = document.activeElement as HTMLElement | null;
+    dialog.current?.focus();
+    return () => opener?.focus?.();
   }, []);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key !== "Tab" || !dialog.current) return;
+      // Keep Tab inside the dialog.
+      const items = [...dialog.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === dialog.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+    <div className={`modal-backdrop ${closing ? "closing" : ""}`} onClick={onClose}>
+      <div
+        ref={dialog}
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-head">
           <h2>{title}</h2>
-          <button className="btn btn-ghost" onClick={onClose} aria-label="Close" data-silent>✕</button>
+          <button className="btn btn-ghost icon-btn" onClick={onClose} aria-label="Close" data-silent>
+            <Icon name="close" />
+          </button>
         </div>
         {children}
       </div>
@@ -86,13 +128,6 @@ export function PreflopChartModal({ hole, onClose }: { hole?: readonly Card[]; o
   );
 }
 
-export const ASSIST_LEVELS: { id: AssistLevel; icon: string; name: string; short: string; description: string }[] = [
-  { id: "off", icon: "🃏", name: "Off", short: "Just the cards", description: "Just the game. The Hand Helper shows only your hand and the rankings." },
-  { id: "hints", icon: "💡", name: "Hints", short: "Odds & outs", description: "Win chance, pot odds, outs, and what beats you." },
-  { id: "coach", icon: "🎓", name: "Coach", short: "Tips with reasons", description: "Hints, plus a suggested action with a plain-English reason." },
-  { id: "guided", icon: "🧭", name: "Guided", short: "Shows the best move", description: "Coach, plus it highlights the suggested button and pre-fills the bet size." },
-];
-
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return <button className="toggle" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} />;
 }
@@ -112,8 +147,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           <div className="tile-row compact" style={{ width: "100%" }}>
             {ASSIST_LEVELS.map((l) => (
               <button key={l.id} className="tile" aria-pressed={settings.assist === l.id} onClick={() => update({ assist: l.id })} title={l.description}>
-                {settings.assist === l.id && <span className="tile-check" aria-hidden>✓</span>}
-                <span className="tile-icon">{l.icon}</span>
+                {settings.assist === l.id && <span className="tile-check"><Icon name="check" size="0.9rem" /></span>}
+                <span className="tile-icon"><Icon name={l.icon} /></span>
                 <span className="tile-name">{l.name}</span>
                 <span className="tile-desc">{l.short}</span>
               </button>
@@ -160,6 +195,13 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="field">
           <div>
+            <div>Reduce motion</div>
+            <div className="desc">Quick fades instead of flying cards and chips.</div>
+          </div>
+          <Toggle label="Reduce motion" checked={settings.reduceMotion} onChange={(v) => update({ reduceMotion: v })} />
+        </div>
+        <div className="field">
+          <div>
             <div>Show Hand Helper panel</div>
             <div className="desc">The side panel with your hand, odds, and hand rankings.</div>
           </div>
@@ -187,7 +229,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             <div className="desc">How long the computer players take to act.</div>
           </div>
           <div className="segmented">
-            {(["slow", "normal", "fast"] as BotSpeed[]).map((s) => (
+            {BOT_SPEEDS.map((s) => (
               <button key={s} aria-pressed={settings.botSpeed === s} onClick={() => update({ botSpeed: s })}>
                 {s[0].toUpperCase() + s.slice(1)}
               </button>

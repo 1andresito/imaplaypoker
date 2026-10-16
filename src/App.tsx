@@ -6,8 +6,11 @@ import { ActionArea } from "./ui/ActionArea";
 import { HandPanel } from "./ui/HandPanel";
 import { HistoryPanel } from "./ui/HistoryPanel";
 import { HowToPlay, Logo, MainMenu, StatsScreen, TableSetup } from "./ui/Menu";
-import { ASSIST_LEVELS, PreflopChartModal, SettingsModal } from "./ui/Modals";
+import { ASSIST_LEVELS } from "./ui/constants";
+import { Icon } from "./ui/icons";
+import { PreflopChartModal, SettingsModal } from "./ui/Modals";
 import { formatCode, MultiplayerScreen } from "./ui/Multiplayer";
+import { SoundToggles } from "./ui/SoundToggles";
 import { StatsPanel } from "./ui/StatsPanel";
 import { Table } from "./ui/Table";
 import { UpdateDialog } from "./ui/Updates";
@@ -19,24 +22,31 @@ export function App() {
   const screen = useGameStore((s) => s.screen);
   const [showSettings, setShowSettings] = useState(false);
   const largeText = useGameStore((s) => s.settings.largeText);
+  const reduceMotion = useGameStore((s) => s.settings.reduceMotion);
   useEffect(() => {
     document.documentElement.classList.toggle("large-text", largeText);
   }, [largeText]);
+  useEffect(() => {
+    document.documentElement.classList.toggle("reduce-motion", reduceMotion);
+  }, [reduceMotion]);
   const openSettings = () => setShowSettings(true);
   return (
     <div className="app">
-      {screen === "menu" && <MainMenu onSettings={openSettings} />}
-      {screen === "setup" && <TableSetup onSettings={openSettings} />}
-      {screen === "howto" && <HowToPlay onSettings={openSettings} />}
-      {screen === "stats" && <StatsScreen onSettings={openSettings} />}
-      {screen === "multiplayer" && <MultiplayerScreen onSettings={openSettings} />}
-      {screen === "table" && (
-        <>
-          <TopBar onSettings={openSettings} />
-          <TableScreen />
-          <ConnectionLost />
-        </>
-      )}
+      {/* Keyed so every screen change plays the entrance transition. */}
+      <div key={screen} className={`screen screen-${screen}`}>
+        {screen === "menu" && <MainMenu onSettings={openSettings} />}
+        {screen === "setup" && <TableSetup onSettings={openSettings} />}
+        {screen === "howto" && <HowToPlay onSettings={openSettings} />}
+        {screen === "stats" && <StatsScreen onSettings={openSettings} />}
+        {screen === "multiplayer" && <MultiplayerScreen onSettings={openSettings} />}
+        {screen === "table" && (
+          <>
+            <TopBar onSettings={openSettings} />
+            <TableScreen />
+            <ConnectionLost />
+          </>
+        )}
+      </div>
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       <UpdateDialog />
     </div>
@@ -44,9 +54,13 @@ export function App() {
 }
 
 function TopBar({ onSettings }: { onSettings: () => void }) {
-  const { settings, updateSettings, leaveTable, game, mode, room } = useGameStore();
+  const assist = useGameStore(effectiveAssist);
+  const updateSettings = useGameStore((s) => s.updateSettings);
+  const leaveTable = useGameStore((s) => s.leaveTable);
+  const game = useGameStore((s) => s.game);
+  const mode = useGameStore((s) => s.mode);
+  const room = useGameStore((s) => s.room);
   const code = useHostStore((s) => s.info?.code);
-  const assist = effectiveAssist({ settings, mode, room });
   const helpersLocked = mode !== "solo" && !!room && !room.helpers;
   const leave = () => {
     const question = mode === "host" ? "Close the room? Everyone at the table will be disconnected." : "Leave this game?";
@@ -55,9 +69,13 @@ function TopBar({ onSettings }: { onSettings: () => void }) {
   return (
     <header className="topbar">
       <div className="brand">
-        <Logo size="1.9rem" /> imaplaypoker
+        <Logo size="2rem" /> imaplay<span>poker</span>
       </div>
-      {game && <span className="hand-info num">Hand #{game.handNumber} · Blinds {game.config.smallBlind}/{game.config.bigBlind}</span>}
+      {game && (
+        <span className="hand-info num">
+          Hand {game.handNumber} <span className="sep" /> Blinds {game.config.smallBlind}/{game.config.bigBlind}
+        </span>
+      )}
       {mode === "host" && code && (
         <span className="hand-info" title="Players need this code to join or rejoin">
           Room code <strong className="num">{formatCode(code)}</strong>
@@ -80,28 +98,12 @@ function TopBar({ onSettings }: { onSettings: () => void }) {
           ))}
         </div>
       </div>
-      <button
-        className={`btn btn-sm sound-btn ${settings.music ? "on" : ""}`}
-        role="switch"
-        aria-checked={settings.music}
-        onClick={() => updateSettings({ music: !settings.music })}
-        title={settings.music ? "Turn music off" : "Play background jazz"}
-      >
-        {settings.music ? "♫ Music on" : "♫ Music off"}
+      <SoundToggles />
+      <button className="btn btn-sm icon-btn" onClick={onSettings} aria-label="Settings" title="Settings">
+        <Icon name="gear" />
       </button>
-      <button
-        className={`btn btn-sm sound-btn ${settings.soundEffects ? "on" : ""}`}
-        role="switch"
-        aria-checked={settings.soundEffects}
-        onClick={() => updateSettings({ soundEffects: !settings.soundEffects })}
-        title={settings.soundEffects ? "Mute sound effects" : "Turn sound effects on"}
-        aria-label="Sound effects"
-      >
-        {settings.soundEffects ? "🔊" : "🔇"}
-      </button>
-      <button className="btn btn-sm" onClick={onSettings}>⚙ Settings</button>
       <button className="btn btn-sm" onClick={leave} title="Leave the table and go back to the main menu">
-        ☰ Menu
+        <Icon name="door" /> Leave table
       </button>
     </header>
   );

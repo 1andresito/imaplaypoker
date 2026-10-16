@@ -1,12 +1,14 @@
 import { create } from "zustand";
+import { buildTimeline } from "../animation/timeline";
 import { botDecision, botThinkTime } from "../ai/bot";
 import { BOT_NAMES, BOT_PROFILES } from "../ai/profiles";
 import type { Advice } from "../analysis/advisor";
 import { createRng, randomSeed, type Rng, shuffle } from "../engine/cards";
 import { applyAction, createGame, legalActions, playersWithChips, startHand } from "../engine/gameState";
 import type { GameState, PlayerAction, SeatSetup } from "../engine/types";
+import { VARIANTS } from "../engine/variants";
 import type { RoomSettings } from "../net/protocol";
-import { load, save } from "../stats/storage";
+import { bool, clampNum, count, load, oneOf, save } from "../stats/storage";
 import {
   addCoachDecision,
   addHand,
@@ -35,6 +37,8 @@ export interface Settings {
   musicVolume: number;
   /** Scales all text up for readability. */
   largeText: boolean;
+  /** Instant changes instead of flying cards and chips. */
+  reduceMotion: boolean;
 }
 
 export interface TableSetup {
@@ -54,6 +58,14 @@ export type Screen = "menu" | "setup" | "howto" | "stats" | "multiplayer" | "tab
 /** solo: you vs bots. host: this computer runs a multiplayer game. client: you joined someone's game. */
 export type Mode = "solo" | "host" | "client";
 
+export const ASSIST_IDS: readonly AssistLevel[] = ["off", "hints", "coach", "guided"];
+export const BOT_SPEEDS: readonly BotSpeed[] = ["slow", "normal", "fast"];
+/** Big blinds offered in table setup (small blind is half). */
+export const BIG_BLINDS = [10, 20, 50, 100] as const;
+/** Starting stacks offered in table setup, in big blinds. */
+export const STACK_DEPTHS = [50, 100, 200] as const;
+export const MAX_BOTS = 8;
+
 const DEFAULT_SETTINGS: Settings = {
   assist: "coach",
   showHandHelper: true,
@@ -65,6 +77,9 @@ const DEFAULT_SETTINGS: Settings = {
   music: false,
   musicVolume: 0.35,
   largeText: false,
+  // Off by default: many Windows machines report "reduce motion" just because
+  // animation effects were turned off for performance. Players can opt in.
+  reduceMotion: false,
 };
 
 const DEFAULT_SETUP: TableSetup = {
@@ -74,6 +89,55 @@ const DEFAULT_SETUP: TableSetup = {
   bigBlind: 20,
   startingStack: 2000,
 };
+
+function sanitizeSettings(s: Settings, d: Settings): Settings {
+  return {
+    assist: oneOf(s.assist, ASSIST_IDS, d.assist),
+    showHandHelper: bool(s.showHandHelper, d.showHandHelper),
+    fourColorDeck: bool(s.fourColorDeck, d.fourColorDeck),
+    botSpeed: oneOf(s.botSpeed, BOT_SPEEDS, d.botSpeed),
+    autoDeal: bool(s.autoDeal, d.autoDeal),
+    soundEffects: bool(s.soundEffects, d.soundEffects),
+    volume: clampNum(s.volume, 0, 1, d.volume),
+    music: bool(s.music, d.music),
+    musicVolume: clampNum(s.musicVolume, 0, 1, d.musicVolume),
+    largeText: bool(s.largeText, d.largeText),
+    reduceMotion: bool(s.reduceMotion, d.reduceMotion),
+  };
+}
+
+function sanitizeSetup(s: TableSetup, d: TableSetup): TableSetup {
+  const bigBlind = oneOf(s.bigBlind, BIG_BLINDS, d.bigBlind);
+  // The stack must be one of the offered depths at this blind level.
+  const depth = oneOf(s.startingStack / bigBlind, STACK_DEPTHS, d.startingStack / d.bigBlind);
+  return {
+    variantId: oneOf(s.variantId, Object.keys(VARIANTS), d.variantId),
+    bots: Number.isInteger(s.bots) ? Math.min(MAX_BOTS, Math.max(1, s.bots)) : d.bots,
+    botStyle: oneOf(s.botStyle, ["mixed", ...Object.keys(BOT_PROFILES)], d.botStyle),
+    bigBlind,
+    startingStack: depth * bigBlind,
+  };
+}
+
+function sanitizeLifetime(s: PlayerStats, d: PlayerStats): PlayerStats {
+  const byCat = Array.isArray(s.wonByCategory) && s.wonByCategory.length === d.wonByCategory.length ? s.wonByCategory : d.wonByCategory;
+  return {
+    handsPlayed: count(s.handsPlayed, 0),
+    vpipHands: count(s.vpipHands, 0),
+    pfrHands: count(s.pfrHands, 0),
+    handsWon: count(s.handsWon, 0),
+    showdowns: count(s.showdowns, 0),
+    showdownsWon: count(s.showdownsWon, 0),
+    netChips: Number.isInteger(s.netChips) ? s.netChips : 0,
+    biggestPotWon: count(s.biggestPotWon, 0),
+    wonByCategory: byCat.map((n) => count(n, 0)),
+    coachDecisions: count(s.coachDecisions, 0),
+    coachAgreed: count(s.coachAgreed, 0),
+  };
+}
+
+/** Exported for tests. */
+export const sanitizers = { settings: sanitizeSettings, setup: sanitizeSetup, lifetime: sanitizeLifetime };
 
 const SPEED_FACTOR: Record<BotSpeed, number> = { slow: 1.8, normal: 1, fast: 0.35 };
 /** A disconnected player's turn is taken (check, else fold) after this. */
@@ -207,6 +271,8 @@ export const useGameStore = create<Store>((set, get) => {
   /** After every state change: schedule the next bot action or record a finished hand. */
   function step(game: GameState) {
     clearTimers();
+    // Let the cards and chips finish moving before anyone acts again.
+    const animationMs = get().settings.reduceMotion ? 0 : buildTimeline(get().game, game, get().myId).duration * 1000;
     set({ game });
     const { mode, myId } = get();
     if (game.phase === "betting") {
@@ -221,25 +287,25 @@ export const useGameStore = create<Store>((set, get) => {
         const current = get().game;
         if (current !== game) return;
         step(applyAction(current, botDecision(current, rng)));
-      }, botThinkTime(rng) * factor);
+      }, animationMs + botThinkTime(rng) * factor);
       return;
     }
     turnDeadline = null;
     set({ turnEndsAt: null });
     if (game.phase === "complete") {
       recordHand(game);
-      if (mode === "host" && canDeal(game, mode, myId)) dealTimer = setTimeout(() => get().dealNextHand(), MULTIPLAYER_DEAL_MS);
-      else if (get().settings.autoDeal && canDeal(game, mode, myId)) dealTimer = setTimeout(() => get().dealNextHand(), 3500);
+      if (mode === "host" && canDeal(game, mode, myId)) dealTimer = setTimeout(() => get().dealNextHand(), animationMs + MULTIPLAYER_DEAL_MS);
+      else if (get().settings.autoDeal && canDeal(game, mode, myId)) dealTimer = setTimeout(() => get().dealNextHand(), animationMs + 3500);
     }
   }
 
   return {
     screen: "menu",
-    settings: load("settings", DEFAULT_SETTINGS),
-    setup: load("setup", DEFAULT_SETUP),
+    settings: load("settings", DEFAULT_SETTINGS, sanitizeSettings),
+    setup: load("setup", DEFAULT_SETUP, sanitizeSetup),
     game: null,
     session: emptySession(DEFAULT_SETUP.startingStack),
-    lifetime: load("lifetime", emptyStats()),
+    lifetime: load("lifetime", emptyStats(), sanitizeLifetime),
     currentAdvice: null,
     mode: "solo",
     myId: HUMAN_ID,

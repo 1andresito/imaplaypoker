@@ -4,9 +4,10 @@ import { useClientStore } from "../net/clientSession";
 import { HOST_SEAT, useHostStore } from "../net/hostSession";
 import { type LobbySeat, MAX_SEATS, type RoomSettings, TURN_TIMES } from "../net/protocol";
 import { useGameStore } from "../store/gameStore";
+import { STYLE_COLORS } from "./constants";
 import { chips } from "./format";
+import { Icon } from "./icons";
 import { MenuScene, ScreenHeader, STACKS, STAKES, Tile } from "./Menu";
-import { STYLE_COLORS } from "./Table";
 
 /** "K7QM2XPA" → "K7QM-2XPA". */
 export const formatCode = (code: string) => `${code.slice(0, 4)}-${code.slice(4)}`;
@@ -110,7 +111,7 @@ function HostForm() {
         onClick={() => void open()}
         disabled={status === "opening" || !setup.hostName.trim()}
       >
-        {status === "opening" ? "Opening…" : "Open room ▶"}
+        {status === "opening" ? "Opening…" : <>Open room <Icon name="play" size="0.8em" /></>}
       </button>
     </>
   );
@@ -173,7 +174,7 @@ function HostLobby() {
             {seats.map((s) => (
               <li key={s.id}>
                 <span className="avatar" style={{ background: s.kind === "host" ? "var(--accent)" : "var(--info)" }}>
-                  {s.kind === "host" ? "★" : s.name[0]}
+                  {s.kind === "host" ? <Icon name="spade" size="1rem" /> : s.name[0]}
                 </span>
                 <span className="mp-seat-name">{s.name}</span>
                 <span className="muted">{s.kind === "host" ? "Host (you)" : "Player"}</span>
@@ -191,7 +192,7 @@ function HostLobby() {
                     className="avatar"
                     style={{ background: STYLE_COLORS[setup.botStyle === "mixed" ? Object.keys(BOT_PROFILES)[i % 4] : setup.botStyle] }}
                   >
-                    🤖
+                    B
                   </span>
                   <span className="mp-seat-name">Bot</span>
                   <span className="muted">{setup.botStyle === "mixed" ? "Mixed style" : BOT_PROFILES[setup.botStyle].name}</span>
@@ -234,7 +235,7 @@ function HostLobby() {
       <div className="mp-actions">
         <button className="btn" onClick={close}>Close room</button>
         <button className="menu-btn primary deal-btn" onClick={start} disabled={status !== "lobby" || seatsUsed < 2}>
-          {seatsUsed < 2 ? "Waiting for players…" : "Start game ▶"}
+          {seatsUsed < 2 ? "Waiting for players…" : <>Start game <Icon name="play" size="0.8em" /></>}
         </button>
       </div>
     </>
@@ -255,7 +256,6 @@ function RoomRules({ room, onChange }: { room: RoomSettings; onChange: (patch: P
                 selected={room.bigBlind === s.bb}
                 onClick={() => onChange({ bigBlind: s.bb, smallBlind: s.bb / 2, startingStack: bbs * s.bb })}
               >
-                <span className="tile-icon">{s.icon}</span>
                 <span className="tile-name">{s.label}</span>
                 <span className="tile-desc num">{chips(s.bb / 2)}/{chips(s.bb)}</span>
               </Tile>
@@ -290,11 +290,11 @@ function RoomRules({ room, onChange }: { room: RoomSettings; onChange: (patch: P
           <h2>Learning helpers</h2>
           <div className="tile-row compact">
             <Tile selected={room.helpers} onClick={() => onChange({ helpers: true })}>
-              <span className="tile-icon">🎓</span>
+              <span className="tile-icon"><Icon name="coach" /></span>
               <span className="tile-name">Allowed</span>
             </Tile>
             <Tile selected={!room.helpers} onClick={() => onChange({ helpers: false })}>
-              <span className="tile-icon">🃏</span>
+              <span className="tile-icon"><Icon name="cards" /></span>
               <span className="tile-name">Off</span>
             </Tile>
           </div>
@@ -338,7 +338,7 @@ function JoinForm() {
         <h2>
           Rooms on your network
           <button type="button" className="btn btn-sm" style={{ marginLeft: "0.8rem" }} onClick={() => void discover()} disabled={discovering}>
-            {discovering ? "Looking…" : "↻ Refresh"}
+            {discovering ? "Looking…" : "Refresh"}
           </button>
         </h2>
         {rooms.length === 0 ? (
@@ -347,7 +347,7 @@ function JoinForm() {
           <div className="tile-row slim">
             {rooms.map((r) => (
               <Tile key={r.address} selected={prefs.address === r.address} onClick={() => updatePrefs({ address: r.address })}>
-                <span className="tile-icon">♠</span>
+                <span className="tile-icon"><Icon name="spade" /></span>
                 <span>
                   <span className="tile-name">{r.name}</span>
                   <span className="tile-desc num" style={{ display: "block" }}>{r.seats}/{r.max} seats · {r.address}</span>
@@ -386,7 +386,7 @@ function JoinForm() {
       </div>
       {(error || ended) && <p className="mp-error" role="alert">{error ?? ended}</p>}
       <button type="submit" className="menu-btn primary deal-btn" disabled={!canJoin}>
-        {connecting ? "Connecting…" : "Join ▶"}
+        {connecting ? "Connecting…" : <>Join <Icon name="play" size="0.8em" /></>}
       </button>
     </form>
   );
@@ -416,7 +416,7 @@ function JoinLobby() {
                 className="avatar"
                 style={{ background: s.kind === "bot" ? STYLE_COLORS[s.botProfile ?? "tag"] : s.kind === "host" ? "var(--accent)" : "var(--info)" }}
               >
-                {s.kind === "bot" ? "🤖" : s.name[0]}
+                {s.name[0]}
               </span>
               <span className="mp-seat-name">{s.name}</span>
               <span className="muted">{s.id === seatId ? "You" : s.kind === "host" ? "Host" : s.kind === "bot" ? "Bot" : "Player"}</span>

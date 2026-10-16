@@ -7,8 +7,8 @@ import { create } from "zustand";
 import { BOT_NAMES, BOT_PROFILES } from "../ai/profiles";
 import { createRng, randomSeed, shuffle } from "../engine/cards";
 import type { SeatSetup } from "../engine/types";
-import { load, save } from "../stats/storage";
-import { setNetHooks, useGameStore } from "../store/gameStore";
+import { bool, load, oneOf, save } from "../stats/storage";
+import { BIG_BLINDS, setNetHooks, STACK_DEPTHS, useGameStore } from "../store/gameStore";
 import {
   type ClientMessage,
   DEFAULT_PORT,
@@ -18,6 +18,7 @@ import {
   PROTOCOL_VERSION,
   type RejectReason,
   type RoomSettings,
+  TURN_TIMES,
 } from "./protocol";
 import { describeNetError, type HostEvent, type HostInfo, type HostTransport, tauriHost } from "./transport";
 import { parseClientMessage, sanitizeName } from "./validate";
@@ -80,6 +81,29 @@ const DEFAULT_SETUP: HostSetup = {
   bots: 0,
   botStyle: "mixed",
 };
+
+const str = (v: unknown, max: number, fallback: string) => (typeof v === "string" ? v.slice(0, max) : fallback);
+
+/** Saved setup is untrusted (old versions, hand edits): keep only values the lobby offers. */
+export function sanitizeHostSetup(s: HostSetup, d: HostSetup): HostSetup {
+  const r = (typeof s.room === "object" && s.room !== null ? s.room : d.room) as Partial<RoomSettings>;
+  const bigBlind = oneOf(r.bigBlind, BIG_BLINDS, d.room.bigBlind);
+  const depth = oneOf((r.startingStack ?? 0) / bigBlind, STACK_DEPTHS, d.room.startingStack / d.room.bigBlind);
+  return {
+    hostName: str(s.hostName, 16, d.hostName),
+    port: Number.isInteger(s.port) && s.port >= 1024 && s.port <= 65535 ? s.port : d.port,
+    room: {
+      name: str(r.name, 24, d.room.name),
+      bigBlind,
+      smallBlind: bigBlind / 2,
+      startingStack: depth * bigBlind,
+      turnSeconds: oneOf(r.turnSeconds, TURN_TIMES, d.room.turnSeconds),
+      helpers: bool(r.helpers, d.room.helpers),
+    },
+    bots: Number.isInteger(s.bots) ? Math.min(MAX_SEATS - 1, Math.max(0, s.bots)) : d.bots,
+    botStyle: oneOf(s.botStyle, ["mixed", ...Object.keys(BOT_PROFILES)], d.botStyle),
+  };
+}
 
 let transport: HostTransport = tauriHost;
 /** Tests use an in-memory transport. */
@@ -331,7 +355,7 @@ export const useHostStore = create<HostStore>((set, get) => {
   return {
     status: "idle",
     info: null,
-    setup: load("hostSetup", DEFAULT_SETUP),
+    setup: load("hostSetup", DEFAULT_SETUP, sanitizeHostSetup),
     members: [],
     locked: false,
     alert: false,

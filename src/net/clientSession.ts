@@ -140,7 +140,10 @@ export const useClientStore = create<ClientStore>((set, get) => {
 
   return {
     status: "idle",
-    prefs: load("joinPrefs", { name: "", address: "" }),
+    prefs: load("joinPrefs", { name: "", address: "" }, (s, d) => ({
+      name: typeof s.name === "string" ? s.name.slice(0, 16) : d.name,
+      address: typeof s.address === "string" ? s.address.slice(0, 255) : d.address,
+    })),
     rooms: [],
     discovering: false,
     seatId: null,

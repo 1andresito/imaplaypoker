@@ -4,7 +4,7 @@ import { applyAction, createGame, legalActions, startHand } from "../../engine/g
 import type { GameState, PlayerAction } from "../../engine/types";
 import { autoAction, useGameStore } from "../../store/gameStore";
 import { setClientTransport, useClientStore } from "../clientSession";
-import { HOST_SEAT, setHostTransport, useHostStore } from "../hostSession";
+import { HOST_SEAT, sanitizeHostSetup, setHostTransport, useHostStore } from "../hostSession";
 import { type HostMessage, MAX_SEATS, PROTOCOL_VERSION } from "../protocol";
 import type { ClientEvent, ClientTransport, HostEvent, HostTransport } from "../transport";
 import { parseClientMessage, parseHostMessage, sanitizeName, validView } from "../validate";
@@ -133,6 +133,19 @@ describe("message validation", () => {
     for (const raw of bad) expect(parseClientMessage(raw), raw.slice(0, 80)).toBeNull();
   });
 
+  it("repairs a corrupted saved host setup", () => {
+    const d = useHostStore.getState().setup;
+    const bad = { hostName: 5, port: 80, room: { name: "x".repeat(99), bigBlind: 7, startingStack: -1, turnSeconds: 9, helpers: "yes" }, bots: 50, botStyle: "evil" };
+    const fixed = sanitizeHostSetup(bad as never, d);
+    expect(fixed.port).toBe(d.port);
+    expect(fixed.bots).toBe(MAX_SEATS - 1);
+    expect(fixed.botStyle).toBe(d.botStyle);
+    expect(fixed.room.name).toHaveLength(24);
+    expect(fixed.room.bigBlind).toBe(d.room.bigBlind);
+    expect(fixed.room.turnSeconds).toBe(d.room.turnSeconds);
+    expect(typeof fixed.room.helpers).toBe("boolean");
+  });
+
   it("cleans names", () => {
     expect(sanitizeName("  Sam  ")).toBe("Sam");
     expect(sanitizeName("a‮evil​")).toBe("aevil");
@@ -227,7 +240,8 @@ describe("hosting", () => {
       const game = store.game!;
       if (game.phase === "complete") {
         if (game.players.filter((p) => p.stack > 0).length < 2) store.rebuy();
-        else vi.advanceTimersByTime(7000); // multiplayer deals automatically
+        // Multiplayer deals automatically once the animations finish.
+        else while (useGameStore.getState().game!.handNumber === game.handNumber) vi.advanceTimersByTime(1000);
         await settle();
         hands++;
         continue;

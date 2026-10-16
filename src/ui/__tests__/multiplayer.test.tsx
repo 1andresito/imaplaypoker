@@ -93,7 +93,7 @@ describe("multiplayer UI", () => {
       setter.call(code, "k7qm-2xpa");
       code.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await act(async () => button("Join ▶").click());
+    await act(async () => (container.querySelector('button[type="submit"]') as HTMLButtonElement).click());
     act(() => clientCb!({ kind: "message", json: JSON.stringify({ t: "welcome", seatId: "b", token: "a".repeat(32), room }) }));
     expect(text()).toContain("Waiting for the host");
 
@@ -110,7 +110,9 @@ describe("multiplayer UI", () => {
     );
     expect(container.querySelector(".felt")).not.toBeNull();
     // Our two cards face up, the other four face down.
-    expect(container.querySelectorAll(".seat .card.back")).toHaveLength(4);
+    // (Face-up cards also carry a back face for the flip animation, so count by label.)
+    expect(container.querySelectorAll('.seat [aria-label="Face-down card"]')).toHaveLength(4);
+    expect(container.querySelectorAll(".seat .card.front")).toHaveLength(2);
     expect(text()).toContain("Away");
     // Helpers are off for this room, so the assist buttons are locked.
     expect((container.querySelector(".topbar .segmented button") as HTMLButtonElement).disabled).toBe(true);

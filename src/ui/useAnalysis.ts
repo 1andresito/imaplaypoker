@@ -20,6 +20,13 @@ export interface Analysis {
 }
 
 /**
+ * Monte Carlo runs on the main thread, so cap the total hand evaluations (each
+ * iteration evaluates your hand plus every opponent's) to keep the table smooth.
+ */
+const equityIterations = (opponents: number): number =>
+  Math.round(Math.min(5000, Math.max(2000, 25_000 / (1 + Math.max(1, opponents)))));
+
+/**
  * Everything the learning panels show about your hand. Recomputed only when
  * your cards, the board or the number of opponents change.
  */
@@ -39,7 +46,7 @@ export function useAnalysis(): Analysis | null {
     if (!active) return null;
     return {
       made: currentHand(hole, board),
-      equity: estimateEquity({ hole, board, opponents: Math.max(1, opponents), iterations: 5000 }),
+      equity: estimateEquity({ hole, board, opponents: Math.max(1, opponents), iterations: equityIterations(opponents) }),
       finalOdds: finalCategoryOdds(hole, board),
       outs: countOuts(hole, board),
       threats: boardThreats(hole, board),

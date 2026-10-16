@@ -4,14 +4,16 @@ import { parseCards } from "../engine/cards";
 import { HAND_RANKS } from "../engine/handRanks";
 import { VARIANTS } from "../engine/variants";
 import { rate } from "../stats/tracker";
-import { useGameStore } from "../store/gameStore";
+import { BIG_BLINDS, MAX_BOTS, STACK_DEPTHS, useGameStore } from "../store/gameStore";
 import { isDesktopApp } from "../store/updateStore";
 import { chips, pct, signed } from "./format";
+import { ChipStack } from "./Chip";
+import { ASSIST_LEVELS, STYLE_COLORS } from "./constants";
+import { Icon, type IconName } from "./icons";
 import { chipStackSvg } from "./logo";
-import { ASSIST_LEVELS } from "./Modals";
 import { PlayingCard } from "./PlayingCard";
+import { SoundToggles } from "./SoundToggles";
 import { CategoryBars, StatBlock } from "./StatsPanel";
-import { STYLE_COLORS } from "./Table";
 import { UpdateBanner } from "./Updates";
 
 const LOGO_SVG = chipStackSvg();
@@ -22,31 +24,11 @@ export function Logo({ size }: { size: string }) {
 
 /** Round sound / music / settings buttons pinned to the corner of menu screens. */
 function CornerControls({ onSettings }: { onSettings: () => void }) {
-  const { settings, updateSettings } = useGameStore();
   return (
     <div className="corner-controls">
-      <button
-        className={`round-btn ${settings.music ? "on" : ""}`}
-        role="switch"
-        aria-checked={settings.music}
-        aria-label="Background music"
-        title={settings.music ? "Turn music off" : "Play background jazz"}
-        onClick={() => updateSettings({ music: !settings.music })}
-      >
-        ♫
-      </button>
-      <button
-        className={`round-btn ${settings.soundEffects ? "on" : ""}`}
-        role="switch"
-        aria-checked={settings.soundEffects}
-        aria-label="Sound effects"
-        title={settings.soundEffects ? "Mute sound effects" : "Turn sound effects on"}
-        onClick={() => updateSettings({ soundEffects: !settings.soundEffects })}
-      >
-        {settings.soundEffects ? "🔊" : "🔇"}
-      </button>
+      <SoundToggles round />
       <button className="round-btn" aria-label="Settings" title="Settings" onClick={onSettings}>
-        ⚙
+        <Icon name="gear" />
       </button>
     </div>
   );
@@ -57,7 +39,7 @@ export function MenuScene({ children, onSettings }: { children: ReactNode; onSet
   return (
     <div className="menu-scene">
       <div className="scene-cards" aria-hidden>
-        {["As", "Kh", "Qd", "Jc"].map((c, i) => (
+        {["As", "Kh", "Qd", "Jc", "Ts"].map((c, i) => (
           <div key={c} className={`scene-card c${i}`}>
             <PlayingCard card={parseCards(c)[0]} size="lg" />
           </div>
@@ -74,7 +56,9 @@ export function ScreenHeader({ title, onBack }: { title: string; onBack?: () => 
   const goTo = useGameStore((s) => s.goTo);
   return (
     <div className="screen-header">
-      <button className="back-btn" onClick={onBack ?? (() => goTo("menu"))}>◀ Back</button>
+      <button className="back-btn" onClick={onBack ?? (() => goTo("menu"))}>
+        <Icon name="back" /> Back
+      </button>
       <h1>{title}</h1>
     </div>
   );
@@ -96,10 +80,10 @@ export function MainMenu({ onSettings }: { onSettings: () => void }) {
         </div>
         <nav className="menu-buttons">
           <button className="menu-btn primary" onClick={() => goTo("setup")} autoFocus>
-            ▶ Play
+            <Icon name="play" size="0.8em" /> Play
           </button>
           {isDesktopApp() && (
-            <button className="menu-btn" onClick={() => goTo("multiplayer")}>👥 Multiplayer</button>
+            <button className="menu-btn" onClick={() => goTo("multiplayer")}>Multiplayer</button>
           )}
           <button className="menu-btn" onClick={() => goTo("howto")}>How to Play</button>
           <button className="menu-btn" onClick={() => goTo("stats")}>My Stats</button>
@@ -124,23 +108,23 @@ const UPCOMING = [
 ];
 
 export const STAKES = [
-  { bb: 10, label: "Penny", icon: "🪙" },
-  { bb: 20, label: "Casual", icon: "💵" },
-  { bb: 50, label: "High", icon: "💰" },
-  { bb: 100, label: "VIP", icon: "💎" },
-];
+  { bb: 10, label: "Penny" },
+  { bb: 20, label: "Casual" },
+  { bb: 50, label: "High" },
+  { bb: 100, label: "VIP" },
+] satisfies { bb: (typeof BIG_BLINDS)[number]; label: string }[];
 
 export const STACKS = [
   { bbs: 50, label: "Short", desc: "Fast & swingy" },
   { bbs: 100, label: "Standard", desc: "The classic" },
   { bbs: 200, label: "Deep", desc: "Room to play" },
-];
+] satisfies { bbs: (typeof STACK_DEPTHS)[number]; label: string; desc: string }[];
 
 
 export function Tile({ selected, onClick, children, disabled, label }: { selected?: boolean; onClick?: () => void; children: ReactNode; disabled?: boolean; label?: string }) {
   return (
     <button className="tile" aria-pressed={selected} onClick={onClick} disabled={disabled} aria-label={label}>
-      {selected && <span className="tile-check" aria-hidden>✓</span>}
+      {selected && <span className="tile-check"><Icon name="check" size="0.9rem" /></span>}
       {children}
     </button>
   );
@@ -160,13 +144,13 @@ export function TableSetup({ onSettings }: { onSettings: () => void }) {
           <div className="tile-row slim">
             {Object.values(VARIANTS).map((v) => (
               <Tile key={v.id} selected={setup.variantId === v.id} onClick={() => updateSetup({ variantId: v.id })}>
-                <span className="tile-icon">♠</span>
+                <span className="tile-icon"><Icon name="spade" /></span>
                 <span className="tile-name">{v.name}</span>
               </Tile>
             ))}
             {UPCOMING.map((v) => (
               <Tile key={v.id} disabled label={`${v.name} (coming soon)`}>
-                <span className="tile-icon">🔒</span>
+                <span className="tile-icon"><Icon name="lock" /></span>
                 <span className="tile-name">{v.name}</span>
                 <span className="tile-desc">Coming soon</span>
               </Tile>
@@ -185,7 +169,7 @@ export function TableSetup({ onSettings }: { onSettings: () => void }) {
                 <span className="num">{setup.bots}</span>
                 <small>{setup.bots === 1 ? "Heads-up" : "players"}</small>
               </div>
-              <button className="step-btn" onClick={() => updateSetup({ bots: Math.min(8, setup.bots + 1) })} disabled={setup.bots >= 8} aria-label="More opponents">
+              <button className="step-btn" onClick={() => updateSetup({ bots: Math.min(MAX_BOTS, setup.bots + 1) })} disabled={setup.bots >= MAX_BOTS} aria-label="More opponents">
                 +
               </button>
             </div>
@@ -231,7 +215,7 @@ export function TableSetup({ onSettings }: { onSettings: () => void }) {
                   selected={setup.bigBlind === s.bb}
                   onClick={() => updateSetup({ bigBlind: s.bb, startingStack: (setup.startingStack / setup.bigBlind) * s.bb })}
                 >
-                  <span className="tile-icon">{s.icon}</span>
+                  <span className="tile-icon"><ChipStack amount={s.bb * 2} max={4} size="1.5rem" /></span>
                   <span className="tile-name">{s.label}</span>
                   <span className="tile-desc num">{chips(s.bb / 2)}/{chips(s.bb)}</span>
                 </Tile>
@@ -263,7 +247,7 @@ export function TableSetup({ onSettings }: { onSettings: () => void }) {
             <div className="tile-row compact">
               {ASSIST_LEVELS.map((l) => (
                 <Tile key={l.id} selected={settings.assist === l.id} onClick={() => updateSettings({ assist: l.id })} label={`${l.name}: ${l.description}`}>
-                  <span className="tile-icon">{l.icon}</span>
+                  <span className="tile-icon"><Icon name={l.icon} /></span>
                   <span className="tile-name">{l.name}</span>
                   <span className="tile-desc">{l.short}</span>
                 </Tile>
@@ -271,7 +255,7 @@ export function TableSetup({ onSettings }: { onSettings: () => void }) {
             </div>
           </section>
           <button className="menu-btn primary deal-btn" onClick={sitDown}>
-            Deal me in ▶
+            Deal me in <Icon name="play" size="0.8em" />
           </button>
         </div>
       </div>
@@ -281,11 +265,11 @@ export function TableSetup({ onSettings }: { onSettings: () => void }) {
 
 // ---------------------------------------------------------------------------
 
-const BASICS = [
-  { icon: "🂠", title: "Your cards", text: "You get 2 private cards. Only you can see them." },
-  { icon: "🃏", title: "Shared cards", text: "5 cards are dealt face up in the middle: 3 (the flop), then 1 (the turn), then 1 (the river)." },
-  { icon: "🏆", title: "Best five", text: "Make the best 5-card hand from your 2 cards plus the 5 shared ones." },
-  { icon: "🪙", title: "Betting", text: "Before each new card, everyone can fold, check, call, or raise. Win the pot by having the best hand or by making everyone else fold." },
+const BASICS: { icon: IconName; title: string; text: string }[] = [
+  { icon: "cards", title: "Your cards", text: "You get 2 private cards. Only you can see them." },
+  { icon: "spade", title: "Shared cards", text: "5 cards are dealt face up in the middle: 3 (the flop), then 1 (the turn), then 1 (the river)." },
+  { icon: "trophy", title: "Best five", text: "Make the best 5-card hand from your 2 cards plus the 5 shared ones." },
+  { icon: "coach", title: "Betting", text: "Before each new card, everyone can fold, check, call, or raise. Win the pot by having the best hand or by making everyone else fold." },
 ];
 
 export function HowToPlay({ onSettings }: { onSettings: () => void }) {
@@ -296,7 +280,7 @@ export function HowToPlay({ onSettings }: { onSettings: () => void }) {
         <div className="howto-basics">
           {BASICS.map((b) => (
             <div key={b.title} className="howto-card">
-              <span className="tile-icon">{b.icon}</span>
+              <span className="tile-icon"><Icon name={b.icon} /></span>
               <h3>{b.title}</h3>
               <p>{b.text}</p>
             </div>

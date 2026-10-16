@@ -32,16 +32,32 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
+      # `label` goes into the release file names (e.g. imaplaypoker_0.3.0_Fedora.rpm) so
+      # people can spot their download. Linux builds once per package type, because the
+      # name pattern can't tell .deb from .rpm within a single job.
       matrix:
         include:
           - platform: windows-latest
             args: ""
-          - platform: macos-latest # Apple Silicon
+            label: Windows
+          - platform: macos-latest
             args: "--target aarch64-apple-darwin"
-          - platform: macos-latest # Intel
+            label: macOS-Apple-Silicon
+          - platform: macos-latest
             args: "--target x86_64-apple-darwin"
+            label: macOS-Intel
           - platform: ubuntu-22.04
             args: ""
+            bundles: deb
+            label: Debian-Ubuntu
+          - platform: ubuntu-22.04
+            args: ""
+            bundles: rpm
+            label: Fedora
+          - platform: ubuntu-22.04
+            args: ""
+            bundles: appimage
+            label: Linux-AppImage
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -86,10 +102,21 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ github.event_name != 'pull_request' && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         with:
-          args: ${{ matrix.args }} ${{ steps.signing.outputs.args }}
+          args: ${{ matrix.args }} ${{ matrix.bundles && format('--bundles {0}', matrix.bundles) || '' }} ${{ steps.signing.outputs.args }}
+          # [ext] includes its dot and covers signatures too (.deb.sig), so updates still match.
+          assetNamePattern: "[name]_[version]_${{ matrix.label }}[setup][ext]"
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseName: "imaplaypoker ${{ github.ref_name }}"
-          releaseBody: "Download the installer for your system below. If you already have imaplaypoker 0.2.0 or newer, it will offer this update automatically."
+          releaseBody: |
+            Download the file for your system below:
+
+            - **Windows:** `_Windows-setup.exe` (or the `.msi`)
+            - **Mac:** `_macOS-Apple-Silicon.dmg` for M1 and newer, `_macOS-Intel.dmg` for older Macs
+            - **Debian, Ubuntu, Mint:** `_Debian-Ubuntu.deb`
+            - **Fedora, RHEL, openSUSE:** `_Fedora.rpm`
+            - **Any other Linux:** `_Linux-AppImage.AppImage`
+
+            Ignore the `.sig`, `.tar.gz` and `latest.json` files: they're for automatic updates. If you already have imaplaypoker 0.2.0 or newer, it will offer this update automatically.
           releaseDraft: false
           includeUpdaterJson: true
       # Build logs need a GitHub login, but annotations are public: surface the Rust
@@ -112,4 +139,5 @@ jobs:
             src-tauri/target/**/release/bundle/**/*.dmg
             src-tauri/target/**/release/bundle/**/*.AppImage
             src-tauri/target/**/release/bundle/**/*.deb
+            src-tauri/target/**/release/bundle/**/*.rpm
           if-no-files-found: ignore

@@ -179,9 +179,10 @@ export function HandPanel({ analysis, assist, street, onShowChart }: Props) {
 
 function Stars({ n }: { n: number }) {
   return (
-    <span className="stars" aria-label={`${n} out of 5 stars`}>
-      {"★".repeat(n)}
-      <span className="off">{"★".repeat(5 - n)}</span>
+    <span className="stars" role="img" aria-label={`Strength ${n} out of 5`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <i key={i} className={i < n ? "on" : ""} style={{ animationDelay: `${i * 60}ms` }} />
+      ))}
     </span>
   );
 }

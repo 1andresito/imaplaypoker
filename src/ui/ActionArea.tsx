@@ -3,8 +3,11 @@ import type { Advice } from "../analysis/advisor";
 import { legalActions, potTotal } from "../engine/gameState";
 import { describeHand } from "../engine/handRanks";
 import type { GameState, PlayerAction } from "../engine/types";
-import { type AssistLevel, canDeal, HUMAN_ID, useGameStore } from "../store/gameStore";
+import { useClientStore } from "../net/clientSession";
+import { type AssistLevel, canDeal, useGameStore } from "../store/gameStore";
 import { chips, signed } from "./format";
+import { gameHotkey } from "./hotkeys";
+import { Icon } from "./icons";
 
 interface Props {
   game: GameState;
@@ -14,11 +17,14 @@ interface Props {
 
 export function ActionArea({ game, advice, assist }: Props) {
   const humanAct = useGameStore((s) => s.humanAct);
-  const myTurn = game.phase === "betting" && game.players[game.toAct].id === HUMAN_ID;
+  const myId = useGameStore((s) => s.myId);
+  const notice = useClientStore((s) => s.notice);
+  const myTurn = game.phase === "betting" && game.players[game.toAct].id === myId;
   const showCoach = advice && (assist === "coach" || assist === "guided");
 
   return (
     <div className="action-area">
+      {notice && <div className="net-notice" role="alert">{notice}</div>}
       {myTurn && showCoach && <CoachBox advice={advice} />}
       {game.phase === "complete" ? (
         <ResultBanner game={game} />
@@ -28,7 +34,7 @@ export function ActionArea({ game, advice, assist }: Props) {
         <div className="action-bar">
           <div className="waiting">
             <span className="think"><i /><i /><i /></span>
-            {game.players.find((p) => p.id === HUMAN_ID)?.folded
+            {game.players.find((p) => p.id === myId)?.folded
               ? "You folded. Watch how the hand plays out."
               : `${game.players[game.toAct]?.name} is thinking…`}
           </div>
@@ -41,9 +47,9 @@ export function ActionArea({ game, advice, assist }: Props) {
 function CoachBox({ advice }: { advice: Advice }) {
   return (
     <div className="coach-box" role="status">
-      <div className="icon" aria-hidden>🎓</div>
+      <div className="icon"><Icon name="coach" size="1.9rem" /></div>
       <div>
-        <div className="who">Coach says</div>
+        <div className="who">Coach</div>
         <div className="reason">
           <strong>{advice.headline}.</strong>
           {advice.reason}
@@ -85,11 +91,10 @@ function ActionBar({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
-      const k = e.key.toLowerCase();
-      if (k === "f" && legal.canFold) fold();
-      else if (k === "c") checkCall();
-      else if (k === "r") raise();
+      const key = gameHotkey(e);
+      if (key === "fold" && legal.canFold) fold();
+      else if (key === "call") checkCall();
+      else if (key === "raise") raise();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -102,7 +107,7 @@ function ActionBar({
   return (
     <div className="action-bar my-turn">
       <div className="turn-banner">
-        <span className="title">Your turn!</span>
+        <span className="title">Your move</span>
         <span className="facts num">
           {legal.canCheck ? "No bet to call" : `To call: ${chips(legal.toCall)}`} · Pot: {chips(pot)} · Your chips: {chips(me.stack)}
         </span>
@@ -156,17 +161,18 @@ function ActionBar({
 }
 
 function ResultBanner({ game }: { game: GameState }) {
-  const { dealNextHand, rebuy, leaveTable, settings } = useGameStore();
+  const { dealNextHand, rebuy, leaveTable, settings, mode, myId } = useGameStore();
   const outcome = game.outcome!;
-  const me = game.players.find((p) => p.id === HUMAN_ID)!;
-  const myWin = outcome.payouts[HUMAN_ID] ?? 0;
+  const me = game.players.find((p) => p.id === myId)!;
+  const myWin = outcome.payouts[myId] ?? 0;
   const net = myWin - me.handBet;
-  const myHand = outcome.hands[HUMAN_ID];
+  const myHand = outcome.hands[myId];
   const busted = me.stack === 0;
-  const tableWon = !busted && game.players.every((p) => p.isHuman || p.stack === 0);
+  const tableWon = !busted && game.players.every((p) => p.id === myId || p.stack === 0);
+  const someoneBusted = game.players.some((p) => p.stack === 0);
 
   const title = tableWon
-    ? "You won the table! 🏆"
+    ? "You cleaned out the table"
     : busted
       ? "You're out of chips"
       : myWin > 0
@@ -182,20 +188,35 @@ function ResultBanner({ game }: { game: GameState }) {
       <div className="result-row">
         <div>
           <div className="title">
-            {title}
+            {tableWon && <Icon name="trophy" size="1.2em" />} {title}
             {myWin > 0 && net !== myWin && <span className="muted num" style={{ fontSize: "1rem" }}> (profit {signed(net)})</span>}
           </div>
           {myHand && <div className="text-2">Your hand: {describeHand(myHand)}</div>}
         </div>
-        <div style={{ display: "flex", gap: "0.6rem" }}>
-          {busted || tableWon ? (
+        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+          {mode === "client" ? (
+            <span className="text-2">
+              {busted ? "You're out of chips. The host can refill everyone's stack." : "Next hand starts in a moment…"}
+            </span>
+          ) : mode === "host" ? (
+            <>
+              {(someoneBusted || !canDeal(game, mode, myId)) && (
+                <button className="btn" onClick={rebuy} title="Give every player with no chips a fresh starting stack">
+                  Refill empty stacks
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={dealNextHand} disabled={!canDeal(game, mode, myId)}>
+                Deal now ▶
+              </button>
+            </>
+          ) : busted || tableWon ? (
             <>
               <button className="btn btn-primary" onClick={rebuy}>{busted ? "Rebuy & keep playing" : "Play on with refilled stacks"}</button>
               <button className="btn" onClick={leaveTable}>Main menu</button>
             </>
           ) : (
             <button className="btn btn-primary" onClick={dealNextHand} disabled={!canDeal(game)} autoFocus>
-              {settings.autoDeal ? "Deal now ▶" : "Next hand ▶"}
+              {settings.autoDeal ? "Deal now" : "Next hand"} <Icon name="play" size="0.9em" />
             </button>
           )}
         </div>

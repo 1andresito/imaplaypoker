@@ -1,3 +1,4 @@
+import type { Update } from "@tauri-apps/plugin-updater";
 import { create } from "zustand";
 
 /** True when running inside the Tauri desktop app (not the browser dev build). */
@@ -6,13 +7,6 @@ export const isDesktopApp = (): boolean => typeof window !== "undefined" && "__T
 export const APP_VERSION: string = __APP_VERSION__;
 
 type Status = "idle" | "checking" | "none" | "available" | "downloading" | "ready" | "error";
-
-interface PendingUpdate {
-  version: string;
-  notes: string;
-  date?: string;
-  downloadAndInstall(onEvent: (e: { event: string; data?: { contentLength?: number; chunkLength?: number } }) => void): Promise<void>;
-}
 
 interface UpdateStore {
   status: Status;
@@ -30,7 +24,7 @@ interface UpdateStore {
   openDialog(open: boolean): void;
 }
 
-let pending: PendingUpdate | null = null;
+let pending: Update | null = null;
 
 export const useUpdateStore = create<UpdateStore>((set, get) => ({
   status: "idle",
@@ -48,7 +42,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
       const { check } = await import("@tauri-apps/plugin-updater");
       const update = await check();
       if (update) {
-        pending = update as unknown as PendingUpdate;
+        pending = update;
         set({ status: "available", version: update.version, notes: update.body ?? "" });
       } else {
         set({ status: "none" });
@@ -65,9 +59,9 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
     let received = 0;
     try {
       await pending.downloadAndInstall((e) => {
-        if (e.event === "Started") total = e.data?.contentLength ?? 0;
+        if (e.event === "Started") total = e.data.contentLength ?? 0;
         if (e.event === "Progress") {
-          received += e.data?.chunkLength ?? 0;
+          received += e.data.chunkLength;
           set({ progress: total ? received / total : null });
         }
       });

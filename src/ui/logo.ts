@@ -7,7 +7,8 @@ interface ChipColor {
   side: string;
 }
 
-const COLORS: Record<string, ChipColor> = {
+export const COLORS: Record<string, ChipColor> = {
+  white: { top: "#ece4cf", side: "#a39778" },
   red: { top: "#e04848", side: "#9e2626" },
   blue: { top: "#3d7fe6", side: "#1f4c96" },
   green: { top: "#34b366", side: "#1d6e3e" },
@@ -22,10 +23,10 @@ interface Dims {
   t: number; // chip thickness
 }
 
-const dims = (k: number): Dims => ({ rx: 42 * k, ry: 17.5 * k, t: 15 * k });
+export const dims = (k: number): Dims => ({ rx: 42 * k, ry: 17.5 * k, t: 15 * k });
 
 /** One chip whose top face is centered at (x, y). */
-function chip(x: number, y: number, c: ChipColor, { rx, ry, t }: Dims): string {
+export function chip(x: number, y: number, c: ChipColor, { rx, ry, t }: Dims): string {
   // Side band: left edge down, bottom half-ellipse across, right edge up.
   const side = `M${x - rx},${y} v${t} a${rx},${ry} 0 0 0 ${2 * rx},0 v${-t} Z`;
   // White edge spots on the side band, following the curve of the bottom ellipse.
@@ -77,4 +78,14 @@ export function chipStackSvg({ background = false, simple = false }: LogoOptions
     ? `<rect width="200" height="200" rx="44" fill="#1f7a50"/><rect x="6" y="6" width="188" height="188" rx="39" fill="none" stroke="#2c9a68" stroke-width="3"/>`
     : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">${bg}${shadow}${chips}</svg>`;
+}
+
+/** A single column of chips, bottom chip first, sized tightly to the stack (for bets and pots). */
+export function chipColumnSvg(colors: string[]): string {
+  const d = dims(1);
+  const w = 2 * d.rx + 8;
+  const h = 6 + 2 * d.ry + colors.length * d.t;
+  const y0 = h - 3 - d.t - d.ry;
+  const body = colors.map((name, i) => chip(w / 2, y0 - i * d.t, COLORS[name], d)).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">${body}</svg>`;
 }

@@ -25,6 +25,15 @@ export interface Settings {
   fourColorDeck: boolean;
   botSpeed: BotSpeed;
   autoDeal: boolean;
+  soundEffects: boolean;
+  /** Sound-effects volume, 0–1. */
+  volume: number;
+  /** Looping background jazz. Off until the player turns it on. */
+  music: boolean;
+  /** Music volume, 0–1. */
+  musicVolume: number;
+  /** Scales all text up for readability. */
+  largeText: boolean;
 }
 
 export interface TableSetup {
@@ -38,12 +47,19 @@ export interface TableSetup {
 
 export const HUMAN_ID = "you";
 
+export type Screen = "menu" | "setup" | "howto" | "stats" | "table";
+
 const DEFAULT_SETTINGS: Settings = {
   assist: "coach",
   showHandHelper: true,
   fourColorDeck: false,
   botSpeed: "normal",
   autoDeal: false,
+  soundEffects: true,
+  volume: 0.7,
+  music: false,
+  musicVolume: 0.35,
+  largeText: false,
 };
 
 const DEFAULT_SETUP: TableSetup = {
@@ -57,7 +73,7 @@ const DEFAULT_SETUP: TableSetup = {
 const SPEED_FACTOR: Record<BotSpeed, number> = { slow: 1.8, normal: 1, fast: 0.35 };
 
 interface Store {
-  screen: "lobby" | "table";
+  screen: Screen;
   settings: Settings;
   setup: TableSetup;
   game: GameState | null;
@@ -66,6 +82,7 @@ interface Store {
   /** The coach's advice for the current decision, if any (set by the UI's analysis hook). */
   currentAdvice: Advice | null;
 
+  goTo(screen: Exclude<Screen, "table">): void;
   updateSettings(patch: Partial<Settings>): void;
   updateSetup(patch: Partial<TableSetup>): void;
   sitDown(): void;
@@ -133,13 +150,17 @@ export const useGameStore = create<Store>((set, get) => {
   }
 
   return {
-    screen: "lobby",
+    screen: "menu",
     settings: load("settings", DEFAULT_SETTINGS),
     setup: load("setup", DEFAULT_SETUP),
     game: null,
     session: emptySession(DEFAULT_SETUP.startingStack),
     lifetime: load("lifetime", emptyStats()),
     currentAdvice: null,
+
+    goTo(screen) {
+      set({ screen });
+    },
 
     updateSettings(patch) {
       const settings = { ...get().settings, ...patch };
@@ -171,7 +192,7 @@ export const useGameStore = create<Store>((set, get) => {
 
     leaveTable() {
       clearTimers();
-      set({ screen: "lobby", game: null, currentAdvice: null });
+      set({ screen: "menu", game: null, currentAdvice: null });
     },
 
     dealNextHand() {

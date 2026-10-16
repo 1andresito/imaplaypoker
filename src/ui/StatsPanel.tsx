@@ -31,7 +31,7 @@ function rangeNote(value: number | null, lo: number, hi: number): { sub: string;
   return { sub: `In the solid ${lo}–${hi}% range`, tone: "good" };
 }
 
-function StatBlock({ stats }: { stats: PlayerStats }) {
+export function StatBlock({ stats }: { stats: PlayerStats }) {
   const vpip = rate(stats.vpipHands, stats.handsPlayed);
   const pfr = rate(stats.pfrHands, stats.handsPlayed);
   const vpipNote = stats.handsPlayed >= 10 ? rangeNote(vpip, 18, 28) : { sub: "Needs 10+ hands" };
@@ -141,7 +141,7 @@ function StackChart({ history }: { history: number[] }) {
   );
 }
 
-function CategoryBars({ counts }: { counts: number[] }) {
+export function CategoryBars({ counts }: { counts: number[] }) {
   const total = counts.reduce((a, b) => a + b, 0);
   if (!total) return <div className="box muted">Win a showdown to see which hands win you pots.</div>;
   const max = Math.max(...counts);

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HUMAN_ID, useGameStore } from "./store/gameStore";
 import { ActionArea } from "./ui/ActionArea";
 import { HandPanel } from "./ui/HandPanel";
 import { HistoryPanel } from "./ui/HistoryPanel";
-import { Lobby } from "./ui/Lobby";
+import { HowToPlay, Logo, MainMenu, StatsScreen, TableSetup } from "./ui/Menu";
 import { ASSIST_LEVELS, PreflopChartModal, SettingsModal } from "./ui/Modals";
 import { StatsPanel } from "./ui/StatsPanel";
 import { Table } from "./ui/Table";
@@ -14,40 +14,70 @@ type Tab = "helper" | "stats" | "history";
 export function App() {
   const screen = useGameStore((s) => s.screen);
   const [showSettings, setShowSettings] = useState(false);
+  const largeText = useGameStore((s) => s.settings.largeText);
+  useEffect(() => {
+    document.documentElement.classList.toggle("large-text", largeText);
+  }, [largeText]);
+  const openSettings = () => setShowSettings(true);
   return (
     <div className="app">
-      <TopBar onSettings={() => setShowSettings(true)} />
-      {screen === "lobby" ? <Lobby /> : <TableScreen />}
+      {screen === "menu" && <MainMenu onSettings={openSettings} />}
+      {screen === "setup" && <TableSetup onSettings={openSettings} />}
+      {screen === "howto" && <HowToPlay onSettings={openSettings} />}
+      {screen === "stats" && <StatsScreen onSettings={openSettings} />}
+      {screen === "table" && (
+        <>
+          <TopBar onSettings={openSettings} />
+          <TableScreen />
+        </>
+      )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
 
 function TopBar({ onSettings }: { onSettings: () => void }) {
-  const { screen, settings, updateSettings, leaveTable, game } = useGameStore();
+  const { settings, updateSettings, leaveTable, game } = useGameStore();
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="chip-logo" aria-hidden /> imaplaypoker
+        <Logo size="1.9rem" /> imaplaypoker
       </div>
-      {game && <span className="muted num">Hand #{game.handNumber} · Blinds {game.config.smallBlind}/{game.config.bigBlind}</span>}
+      {game && <span className="hand-info num">Hand #{game.handNumber} · Blinds {game.config.smallBlind}/{game.config.bigBlind}</span>}
       <div className="spacer" />
-      {screen === "table" && (
-        <div>
-          <label>Assist</label>
-          <div className="segmented">
-            {ASSIST_LEVELS.map((l) => (
-              <button key={l.id} aria-pressed={settings.assist === l.id} title={l.description} onClick={() => updateSettings({ assist: l.id })}>
-                {l.name}
-              </button>
-            ))}
-          </div>
+      <div>
+        <span className="label">Help</span>
+        <div className="segmented">
+          {ASSIST_LEVELS.map((l) => (
+            <button key={l.id} aria-pressed={settings.assist === l.id} title={l.description} onClick={() => updateSettings({ assist: l.id })}>
+              {l.name}
+            </button>
+          ))}
         </div>
-      )}
-      <button className="btn btn-sm" onClick={onSettings}>Settings</button>
-      {screen === "table" && (
-        <button className="btn btn-sm" onClick={leaveTable}>Leave table</button>
-      )}
+      </div>
+      <button
+        className={`btn btn-sm sound-btn ${settings.music ? "on" : ""}`}
+        role="switch"
+        aria-checked={settings.music}
+        onClick={() => updateSettings({ music: !settings.music })}
+        title={settings.music ? "Turn music off" : "Play background jazz"}
+      >
+        {settings.music ? "♫ Music on" : "♫ Music off"}
+      </button>
+      <button
+        className={`btn btn-sm sound-btn ${settings.soundEffects ? "on" : ""}`}
+        role="switch"
+        aria-checked={settings.soundEffects}
+        onClick={() => updateSettings({ soundEffects: !settings.soundEffects })}
+        title={settings.soundEffects ? "Mute sound effects" : "Turn sound effects on"}
+        aria-label="Sound effects"
+      >
+        {settings.soundEffects ? "🔊" : "🔇"}
+      </button>
+      <button className="btn btn-sm" onClick={onSettings}>⚙ Settings</button>
+      <button className="btn btn-sm" onClick={leaveTable} title="Leave the table and go back to the main menu">
+        ☰ Menu
+      </button>
     </header>
   );
 }

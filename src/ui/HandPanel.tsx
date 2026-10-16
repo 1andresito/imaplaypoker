@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { GROUP_LABELS, preflopGroup, topPercent } from "../analysis/preflopChart";
+import { GROUP_LABELS, preflopGroup, rankText, starRating } from "../analysis/preflopChart";
 import { parseCards } from "../engine/cards";
 import { HandCategory } from "../engine/evaluator";
 import { categoryName, HAND_RANKS } from "../engine/handRanks";
 import type { AssistLevel } from "../store/gameStore";
-import { pct, strengthColor } from "./format";
+import { pct } from "./format";
 import { CardRow, PlayingCard } from "./PlayingCard";
 import { PreflopGrid } from "./Modals";
 import type { Analysis } from "./useAnalysis";
@@ -28,6 +28,7 @@ export function HandPanel({ analysis, assist, street, onShowChart }: Props) {
   }
   const { made, equity, outs, threats, potOdds } = analysis;
   const preflop = street === "preflop";
+  const strength = verdict(equity.equity, analysis.opponents);
 
   return (
     <div className="panel">
@@ -35,7 +36,13 @@ export function HandPanel({ analysis, assist, street, onShowChart }: Props) {
         <h3>You have</h3>
         <div className="box">
           <div className="you-have">{made.name}</div>
-          {!preflop && <div className="text-2">{categoryName(made.category)}</div>}
+          {preflop ? (
+            <div className="you-have-sub">
+              <Stars n={starRating(made.cards)} /> {GROUP_LABELS[preflopGroup(made.cards)]}, {rankText(made.cards)}
+            </div>
+          ) : (
+            <div className="you-have-sub">{categoryName(made.category)}</div>
+          )}
           <div className="you-have-cards">
             {made.cards.map((c) => (
               <PlayingCard key={c} card={c} size="sm" />
@@ -43,14 +50,13 @@ export function HandPanel({ analysis, assist, street, onShowChart }: Props) {
           </div>
           {made.playsTheBoard && (
             <div className="note warn-note">
-              Your best five cards are all on the board, so every player still in has at least this hand.
+              Careful: your best five cards are all on the table, so every player still in has at least this hand.
             </div>
           )}
           {preflop && (
             <div className="note">
-              {GROUP_LABELS[preflopGroup(made.cards)]} starting hand, top {Math.round(topPercent(made.cards))}% of all hands.{" "}
-              <button className="btn btn-ghost btn-sm" style={{ padding: 0, color: "var(--info)" }} onClick={onShowChart}>
-                See starting-hand chart
+              <button className="link" onClick={onShowChart}>
+                See all starting hands
               </button>
             </div>
           )}
@@ -76,8 +82,9 @@ export function HandPanel({ analysis, assist, street, onShowChart }: Props) {
             <div className="stat-tile" title="Your share of the pot if all remaining cards were dealt out, vs random hands.">
               <div className="label">Win chance</div>
               <div className="value">{pct(equity.equity)}</div>
+              <div className="verdict" style={{ color: strength.color }}>{strength.word}</div>
               <div className="meter">
-                <div style={{ width: pct(equity.equity), background: strengthColor(equity.equity) }} />
+                <div style={{ width: pct(equity.equity), background: strength.color }} />
               </div>
               <div className="sub">
                 vs {analysis.opponents} opponent{analysis.opponents === 1 ? "" : "s"}
@@ -87,11 +94,16 @@ export function HandPanel({ analysis, assist, street, onShowChart }: Props) {
             {potOdds ? (
               <div className="stat-tile" title="The win chance you need for calling to break even in the long run.">
                 <div className="label">Need to call</div>
-                <div className="value" style={{ color: equity.equity >= potOdds.requiredEquity ? "var(--good)" : "var(--bad)" }}>
+                <div className="value" style={{ color: preflop ? undefined : equity.equity >= potOdds.requiredEquity ? "var(--good)" : "var(--bad)" }}>
                   {pct(potOdds.requiredEquity)}
                 </div>
                 <div className="sub">
-                  Pot odds {potOdds.ratio}. {equity.equity >= potOdds.requiredEquity ? "Calling pays." : "Calling loses."}
+                  Pot odds {potOdds.ratio}.{" "}
+                  {preflop
+                    ? "Before the flop, your starting hand matters more than this."
+                    : equity.equity >= potOdds.requiredEquity
+                      ? "Calling pays."
+                      : "Calling loses."}
                 </div>
               </div>
             ) : (
@@ -149,7 +161,7 @@ export function HandPanel({ analysis, assist, street, onShowChart }: Props) {
                     <div key={t.category} className="threat">
                       <span>{categoryName(t.category)}</span>
                       <span className="muted num" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {t.count} hands · e.g. <CardRow cards={t.example} />
+                        {t.count} hand{t.count === 1 ? "" : "s"} · e.g. <CardRow cards={t.example} />
                       </span>
                     </div>
                   ))}
@@ -163,6 +175,28 @@ export function HandPanel({ analysis, assist, street, onShowChart }: Props) {
       <Ladder analysis={analysis} hints={hints} />
     </div>
   );
+}
+
+function Stars({ n }: { n: number }) {
+  return (
+    <span className="stars" aria-label={`${n} out of 5 stars`}>
+      {"★".repeat(n)}
+      <span className="off">{"★".repeat(5 - n)}</span>
+    </span>
+  );
+}
+
+/**
+ * Plain-word reading of your win chance, relative to a fair share of the pot:
+ * 25% is great against 5 opponents but poor heads-up.
+ */
+function verdict(equity: number, opponents: number): { word: string; color: string } {
+  const fair = 1 / (opponents + 1);
+  if (equity >= Math.min(0.65, fair * 2)) return { word: "Very strong", color: "var(--good)" };
+  if (equity >= fair * 1.3) return { word: "Strong", color: "var(--good)" };
+  if (equity >= fair * 0.9) return { word: "About even", color: "var(--warn)" };
+  if (equity >= fair * 0.6) return { word: "Behind", color: "var(--warn)" };
+  return { word: "Weak", color: "var(--bad)" };
 }
 
 function Ladder({ analysis, hints }: { analysis: Analysis | null; hints: boolean }) {

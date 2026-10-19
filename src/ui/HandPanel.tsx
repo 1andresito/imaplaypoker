@@ -1,9 +1,12 @@
 import { useState } from "react";
+import type { FoldWhatIf } from "../analysis/whatIf";
 import { GROUP_LABELS, preflopGroup, rankText, starRating } from "../analysis/preflopChart";
 import { parseCards } from "../engine/cards";
 import { HandCategory } from "../engine/evaluator";
+import type { GameState } from "../engine/types";
 import { categoryName, HAND_RANKS } from "../engine/handRanks";
 import type { AssistLevel } from "../store/gameStore";
+import { FoldVerdict } from "./FoldWhatIf";
 import { pct } from "./format";
 import { CardRow, PlayingCard } from "./PlayingCard";
 import { PreflopGrid } from "./Modals";
@@ -11,17 +14,44 @@ import type { Analysis } from "./useAnalysis";
 
 interface Props {
   analysis: Analysis | null;
+  /** Solo, after you fold: how you'd have done by staying in. */
+  whatIf: FoldWhatIf | null;
+  game: GameState;
   assist: AssistLevel;
   street: string;
   onShowChart: () => void;
 }
 
-export function HandPanel({ analysis, assist, street, onShowChart }: Props) {
+export function HandPanel({ analysis, whatIf, game, assist, street, onShowChart }: Props) {
   const hints = assist !== "off";
   if (!analysis) {
     return (
       <div className="panel">
-        <div className="box text-2">You're not in this hand. The helper comes back when you're dealt in.</div>
+        {whatIf ? (
+          <section className="section">
+            <h3>If you hadn't folded</h3>
+            {whatIf.kind === "live" ? (
+              <div className="stat-grid">
+                <div className="stat-tile" title="Your share of the pot if you'd stayed in, against the real cards of everyone still in the hand.">
+                  <div className="label">Win chance</div>
+                  <div className="value">{pct(whatIf.equity)}</div>
+                  <div className="meter">
+                    <div style={{ width: pct(whatIf.equity), background: whatIf.equity >= 0.5 ? "var(--good)" : "var(--bad)" }} />
+                  </div>
+                  <div className="sub">
+                    vs the real hands still in{whatIf.tie > 0.005 ? ` · ${pct(whatIf.tie)} tie` : ""}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="box text-2">
+                <FoldVerdict game={game} whatIf={whatIf} />
+              </div>
+            )}
+          </section>
+        ) : (
+          <div className="box text-2">You're not in this hand. The helper comes back when you're dealt in.</div>
+        )}
         <Ladder analysis={null} hints={false} />
       </div>
     );

@@ -1,4 +1,4 @@
-import { type Rng, fullDeck, shuffle } from "./cards";
+import { type Card, type Rng, fullDeck, shuffle } from "./cards";
 import type { HandResult } from "./evaluator";
 import { describeHand } from "./handRanks";
 import { buildPots, splitPot } from "./showdown";
@@ -250,6 +250,16 @@ function advance(state: GameState): GameState {
     // Post-flop action starts left of the dealer; the dealer itself is checked last.
     state.toAct = state.dealer;
   }
+}
+
+/**
+ * The full board this hand would have ended with: the cards already out plus
+ * the ones `advance()` would deal next (it takes each street off the end of the
+ * deck and reverses them, so keep the two in sync).
+ */
+export function runOutBoard(state: GameState): Card[] {
+  const need = Math.max(0, 5 - state.board.length);
+  return [...state.board, ...state.deck.slice(state.deck.length - need).reverse()];
 }
 
 function finishHand(state: GameState): GameState {

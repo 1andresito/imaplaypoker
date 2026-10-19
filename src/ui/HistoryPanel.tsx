@@ -7,6 +7,7 @@ const STREET = { preflop: "Pre-flop", flop: "Flop", turn: "Turn", river: "River"
 
 export function HistoryPanel({ game }: { game: GameState }) {
   const myId = useGameStore((s) => s.myId);
+  const solo = useGameStore((s) => s.mode === "solo");
   const name = (id: string) => game.players.find((p) => p.id === id)?.name ?? id;
   const line = (e: HandEvent, i: number) => {
     const me = "playerId" in e && e.playerId === myId;
@@ -39,9 +40,13 @@ export function HistoryPanel({ game }: { game: GameState }) {
     }
   };
 
+  // Solo: when everyone folded, every hand is turned face up.
+  const revealAll = solo && game.phase === "complete" && !game.outcome?.showdown;
   const shown = game.outcome?.showdown
     ? game.players.filter((p) => game.outcome!.hands[p.id])
-    : [];
+    : revealAll
+      ? game.players.filter((p) => !p.busted && p.hole.length > 0)
+      : [];
 
   return (
     <div className="panel">
@@ -54,12 +59,13 @@ export function HistoryPanel({ game }: { game: GameState }) {
       </section>
       {shown.length > 0 && (
         <section className="section">
-          <h3>Showdown</h3>
+          <h3>{revealAll ? "Everyone's cards" : "Showdown"}</h3>
           <div className="history">
             {shown.map((p) => (
               <div key={p.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span className={p.id === myId ? "me" : ""} style={{ minWidth: 60 }}>{p.name}</span>
                 <CardRow cards={p.hole} />
+                {revealAll && p.folded && <span className="muted">folded</span>}
               </div>
             ))}
           </div>

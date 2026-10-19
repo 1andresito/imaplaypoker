@@ -97,11 +97,14 @@ export function Table({ game, highlight }: Props) {
   const away = useGameStore((s) => s.away);
   const turnEndsAt = useGameStore((s) => s.turnEndsAt);
   const turnSeconds = useGameStore((s) => s.room?.turnSeconds ?? 0);
+  const solo = useGameStore((s) => s.mode === "solo");
   const { now, deal, id } = useMotion(game, !reduceMotion, myId);
   const { players, outcome } = game;
   // You sit at the bottom: index of your seat (myId is "you" solo, your seat id in multiplayer).
   const humanIndex = Math.max(0, players.findIndex((p) => p.id === myId));
   const done = game.phase === "complete";
+  // Solo: when everyone folds to one player, turn every hand face up so you can learn from them.
+  const revealAll = done && solo && !outcome?.showdown;
   const n = players.length;
 
   const seatPos = (i: number) => seatPosition((i - humanIndex + n) % n, n);
@@ -174,7 +177,8 @@ export function Table({ game, highlight }: Props) {
             return e ? e.at + T.cardFlight * 0.85 : undefined;
           }}
           foldAt={find(now, "action", (e) => e.seat === i && e.type === "fold")?.at}
-          revealAt={reveal?.at}
+          revealAll={revealAll}
+          revealAt={reveal?.at ?? (revealAll ? result?.at : undefined)}
           winAt={(() => {
             const e = find(now, "payout", (x) => x.seat === i);
             return e ? e.at + T.payout * 0.8 : undefined;
@@ -260,13 +264,15 @@ interface SeatProps {
   /** When hole card `index` lands, in seconds (undefined: already there). */
   dealAt: (index: number) => number | undefined;
   foldAt?: number;
+  /** Show this seat's hole cards face up even though there was no showdown. */
+  revealAll: boolean;
   revealAt?: number;
   /** When this seat's winnings land. */
   winAt?: number;
   muckDir: Point;
 }
 
-function Seat({ game, index: i, myId, away, turnClock, pos, highlight, dealAt, foldAt, revealAt, winAt, muckDir }: SeatProps) {
+function Seat({ game, index: i, myId, away, turnClock, pos, highlight, dealAt, foldAt, revealAll, revealAt, winAt, muckDir }: SeatProps) {
   const p = game.players[i];
   const { outcome } = game;
   const done = game.phase === "complete";
@@ -318,7 +324,7 @@ function Seat({ game, index: i, myId, away, turnClock, pos, highlight, dealAt, f
                 />
               );
             }
-            if (shownHand) {
+            if (shownHand || revealAll) {
               return <PlayingCard key={k} card={c} size="sm" flipDelay={revealAt !== undefined ? revealAt + k * 0.08 : undefined} />;
             }
             return (

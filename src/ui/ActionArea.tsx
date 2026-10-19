@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import type { Advice } from "../analysis/advisor";
+import type { FoldWhatIf } from "../analysis/whatIf";
 import { legalActions, potTotal } from "../engine/gameState";
 import { describeHand } from "../engine/handRanks";
 import type { GameState, PlayerAction } from "../engine/types";
 import { useClientStore } from "../net/clientSession";
 import { type AssistLevel, canDeal, useGameStore } from "../store/gameStore";
-import { chips, signed } from "./format";
+import { FoldVerdict } from "./FoldWhatIf";
+import { chips, pct, signed } from "./format";
 import { gameHotkey } from "./hotkeys";
 import { Icon } from "./icons";
 
@@ -13,9 +15,11 @@ interface Props {
   game: GameState;
   advice: Advice | null;
   assist: AssistLevel;
+  /** Solo, after you fold: how you'd have done by staying in. */
+  whatIf: FoldWhatIf | null;
 }
 
-export function ActionArea({ game, advice, assist }: Props) {
+export function ActionArea({ game, advice, assist, whatIf }: Props) {
   const humanAct = useGameStore((s) => s.humanAct);
   const myId = useGameStore((s) => s.myId);
   const notice = useClientStore((s) => s.notice);
@@ -27,7 +31,7 @@ export function ActionArea({ game, advice, assist }: Props) {
       {notice && <div className="net-notice" role="alert">{notice}</div>}
       {myTurn && showCoach && <CoachBox advice={advice} />}
       {game.phase === "complete" ? (
-        <ResultBanner game={game} />
+        <ResultBanner game={game} whatIf={whatIf} />
       ) : myTurn ? (
         <ActionBar game={game} onAct={humanAct} recommended={assist === "guided" ? advice : null} />
       ) : (
@@ -35,7 +39,9 @@ export function ActionArea({ game, advice, assist }: Props) {
           <div className="waiting">
             <span className="think"><i /><i /><i /></span>
             {game.players.find((p) => p.id === myId)?.folded
-              ? "You folded. Watch how the hand plays out."
+              ? `You folded. Watch how the hand plays out.${
+                  whatIf?.kind === "live" ? ` If you'd stayed in: ${pct(whatIf.equity)} to win.` : ""
+                }`
               : `${game.players[game.toAct]?.name} is thinking…`}
           </div>
         </div>
@@ -160,7 +166,7 @@ function ActionBar({
   );
 }
 
-function ResultBanner({ game }: { game: GameState }) {
+function ResultBanner({ game, whatIf }: { game: GameState; whatIf: FoldWhatIf | null }) {
   const { dealNextHand, rebuy, leaveTable, settings, mode, myId } = useGameStore();
   const outcome = game.outcome!;
   const me = game.players.find((p) => p.id === myId)!;
@@ -192,6 +198,11 @@ function ResultBanner({ game }: { game: GameState }) {
             {myWin > 0 && net !== myWin && <span className="muted num" style={{ fontSize: "1rem" }}> (profit {signed(net)})</span>}
           </div>
           {myHand && <div className="text-2">Your hand: {describeHand(myHand)}</div>}
+          {me.folded && whatIf?.kind === "final" && (
+            <div className="text-2">
+              <FoldVerdict game={game} whatIf={whatIf} />
+            </div>
+          )}
         </div>
         <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           {mode === "client" ? (

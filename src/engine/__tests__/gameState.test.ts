@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createRng, parseCards } from "../cards";
-import { applyAction, createGame, legalActions, potTotal, startHand } from "../gameState";
+import { applyAction, createGame, legalActions, potTotal, runOutBoard, startHand } from "../gameState";
 import { buildPots } from "../showdown";
 import type { GameState, PlayerAction, SeatSetup } from "../types";
 
@@ -131,6 +131,18 @@ describe("hand completion", () => {
     expect(s.board).toHaveLength(5);
     expect(s.outcome!.pots.map((p) => p.amount)).toEqual([300, 400]);
     expect(s.players.map((p) => p.stack)).toEqual([300, 400, 700]);
+  });
+});
+
+describe("runOutBoard", () => {
+  it("predicts the board the hand actually deals", () => {
+    for (const seed of [1, 2, 3]) {
+      let s = startHand(createGame(config, seats(4)), createRng(seed));
+      const predicted = runOutBoard(s);
+      expect(predicted).toHaveLength(5);
+      while (s.phase === "betting") s = applyAction(s, { type: legalActions(s)!.canCheck ? "check" : "call" });
+      expect(s.board).toEqual(predicted);
+    }
   });
 });
 

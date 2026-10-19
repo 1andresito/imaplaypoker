@@ -78,6 +78,39 @@ describe("UI renders", () => {
     }
   });
 
+  it("shows what-if stats after you fold and reveals cards when everyone folds", () => {
+    vi.useFakeTimers();
+    act(() => root.render(<App />));
+    act(() => {
+      useGameStore.getState().updateSettings({ showHandHelper: true });
+      useGameStore.getState().sitDown();
+    });
+    vi.clearAllTimers();
+    // You fold at your first turn; bots check or call it down.
+    let game = useGameStore.getState().game!;
+    for (let guard = 0; game.phase === "betting" && guard < 100; guard++) {
+      act(() => useGameStore.setState({ game }));
+      const mine = game.players[game.toAct].id === HUMAN_ID;
+      const legal = legalActions(game)!;
+      game = applyAction(game, { type: mine ? "fold" : legal.canCheck ? "check" : "call" });
+      vi.clearAllTimers();
+    }
+    act(() => useGameStore.setState({ game }));
+    expect(container.textContent).toContain("If you'd stayed in");
+
+    // Next hand: everyone folds to one player.
+    act(() => useGameStore.getState().dealNextHand());
+    vi.clearAllTimers();
+    game = useGameStore.getState().game!;
+    for (let guard = 0; game.phase === "betting" && guard < 100; guard++) {
+      game = applyAction(game, { type: "fold" });
+    }
+    act(() => useGameStore.setState({ game }));
+    const tab = (name: string) => [...container.querySelectorAll('[role="tab"]')].find((b) => b.textContent === name) as HTMLElement;
+    act(() => tab("Hand log").click());
+    expect(container.textContent).toContain("Everyone's cards");
+  });
+
   it("switches side panel tabs", () => {
     vi.useFakeTimers();
     act(() => root.render(<App />));

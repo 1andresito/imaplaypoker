@@ -15,6 +15,7 @@ import { StatsPanel } from "./ui/StatsPanel";
 import { Table } from "./ui/Table";
 import { UpdateDialog } from "./ui/Updates";
 import { useAnalysis } from "./ui/useAnalysis";
+import { useFoldWhatIf } from "./ui/useFoldWhatIf";
 
 type Tab = "helper" | "stats" | "history";
 
@@ -115,6 +116,7 @@ function TableScreen() {
   const assist = useGameStore(effectiveAssist);
   const myId = useGameStore((s) => s.myId);
   const analysis = useAnalysis();
+  const whatIf = useFoldWhatIf();
   const [tab, setTab] = useState<Tab>("helper");
   const [chartOpen, setChartOpen] = useState(false);
   const me = game.players.find((p) => p.id === myId)!;
@@ -127,7 +129,7 @@ function TableScreen() {
     <div className={`table-layout ${showPanel ? "" : "no-panel"}`}>
       <div className="table-col">
         <Table game={game} highlight={highlight} />
-        <ActionArea game={game} advice={analysis?.advice ?? null} assist={assist} />
+        <ActionArea game={game} advice={analysis?.advice ?? null} assist={assist} whatIf={whatIf} />
       </div>
       {showPanel && (
         <aside className="side">
@@ -143,7 +145,7 @@ function TableScreen() {
             ))}
           </div>
           {tab === "helper" && (
-            <HandPanel analysis={analysis} assist={assist} street={game.street} onShowChart={() => setChartOpen(true)} />
+            <HandPanel analysis={analysis} whatIf={whatIf} game={game} assist={assist} street={game.street} onShowChart={() => setChartOpen(true)} />
           )}
           {tab === "stats" && <StatsPanel />}
           {tab === "history" && <HistoryPanel game={game} />}

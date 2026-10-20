@@ -1,139 +1,91 @@
 # imaplaypoker
 
-A desktop poker game for **Windows, macOS, and Linux** that teaches you while you play. On a **Chromebook** (or any computer, without installing), play the web version at **https://1andresito.github.io/imaplaypoker/**. See [Web version and Chromebooks](#web-version-and-chromebooks).
+**Learn poker by playing it.** Play No-Limit Texas Hold'em against computer opponents, or with friends, while a built-in coach explains what's going on.
 
-- **Real game:** No-Limit Texas Hold'em against 1–8 computer opponents with distinct styles (Rock, Shark, Maniac, Calling Station). It handles blinds, min-raises, all-ins, side pots, and split pots.
-- **Hand Helper panel:** shows what you have right now (“Two Pair, Kings and Sevens”) with your best five cards highlighted on the table. It also shows the full hand-rankings ladder with your chance of finishing on each hand, your outs, and what beats you on the current board.
-- **Live stats:** win chance, pot odds and the equity you need to call, outs and the rule of 4 & 2, plus session and all-time VPIP, PFR, showdown win rate, stack chart, and coach agreement.
-- **Assistance levels:**
+## Get the game
+
+| Your device | What to do |
+|---|---|
+| **Chromebook**, or any computer without installing | Play in your browser at **https://1andresito.github.io/imaplaypoker/** |
+| **Windows** | Download `_Windows-setup.exe` from the [latest release](https://github.com/1andresito/imaplaypoker/releases/latest) |
+| **Mac** | Download `_macOS-Apple-Silicon.dmg` (M1 and newer) or `_macOS-Intel.dmg` (older Macs) |
+| **Debian, Ubuntu, Mint** | Download `_Debian-Ubuntu.deb` |
+| **Fedora, RHEL, openSUSE** | Download `_Fedora.rpm` |
+| **Any other Linux** | Download `_Linux-AppImage.AppImage` |
+
+On the releases page, ignore the `.sig`, `.tar.gz` and `latest.json` files: they're for automatic updates.
+
+**First launch on a Mac:** the app isn't notarized by Apple, so macOS says it "could not verify" imaplaypoker. Click **Done**, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once.
+
+The desktop app updates itself: when a new version is out, the main menu offers to install it. Your settings and stats are kept.
+
+## What's in it
+
+- **A real poker game:** play against 1–8 bots with distinct styles (Rock, Shark, Maniac, Calling Station). Blinds, all-ins, side pots and split pots all work properly.
+- **Hand Helper:** shows what you're holding right now ("Two Pair, Kings and Sevens"), highlights your best five cards, and shows your chance of ending up with each kind of hand and what beats you.
+- **Live stats:** your chance to win, pot odds, outs, and your playing habits over time (VPIP, PFR, showdown wins, a chip chart).
+- **Choose how much help you get:**
+
   | Level | What you get |
   |---|---|
-  | Off | Just the game (the Hand Helper shows only your hand and the rankings) |
+  | Off | Just the game |
   | Hints | Win chance, pot odds, outs, threats |
-  | Coach | Hints plus a suggested action with a plain-English reason |
-  | Guided | Coach plus the suggested button highlighted, bet size pre-filled, and a starting-hand chart |
+  | Coach | Hints plus a suggested move and a plain-English reason |
+  | Guided | Coach plus the suggested button highlighted, the bet size filled in, and a starting-hand chart |
 
-- **Game-style menus:** a main menu (Play, How to Play, My Stats, Settings) and a one-screen table setup with tiles for opponents, their style, stakes, chips, and help level.
-- **Multiplayer (desktop app):** host a table on your own computer for up to 8 seats (you, friends, and bots), or join someone else's. See [Multiplayer](#multiplayer).
-- **Sound:** synthesized effects for cards, chips, checks and folds, plus interface sounds for hovering, clicking, tabs, toggles, sliders and dialogs. Optional jazz (off by default; turn it on with the ♫ button), looped seamlessly: the player trims the track's ending fade and silence and crossfades each pass into the next (`src/audio/musicLoop.ts`).
+- **Multiplayer** (desktop app): play with friends on the same Wi-Fi or over the internet.
+- **Sound and music:** card and chip sounds, plus optional jazz (turn it on with the ♫ button).
+- **Keyboard shortcuts:** **F** to fold, **C** to check or call, **R** to raise.
 
-Omaha, Five-Card Draw, and Seven-Card Stud are planned. The engine's `Variant` interface (`src/engine/variants/`) is where they plug in.
+Omaha, Five-Card Draw and Seven-Card Stud are planned.
+
+## Playing on a Chromebook
+
+Open **https://1andresito.github.io/imaplaypoker/** in Chrome. To keep it in your launcher like an app, click the install icon at the right of the address bar.
+
+- Everything except multiplayer works the same as the desktop app. Browsers can't make the direct connections multiplayer needs.
+- Your settings and stats are saved in Chrome on that Chromebook. Clearing your browsing data resets them.
+- You need an internet connection to open it.
+
+**Want multiplayer on a Chromebook?** If your Chromebook has an Intel or AMD processor and lets you turn on Linux (**Settings → About ChromeOS → Developers → Linux development environment**), install the `_Debian-Ubuntu.deb` instead. Rooms on your Wi-Fi won't appear automatically, so join by typing the host's IP address. To host, add port `47820` (TCP) under **Linux development environment → Port forwarding**. School Chromebooks usually don't allow Linux.
 
 ## Multiplayer
 
-One player hosts and their computer runs the game. No server or account is needed.
+One person hosts and their computer runs the game. You don't need an account or a server.
 
-**Hosting:** Main menu → **Multiplayer** → **Host a game** → **Open room**. You get a room code like `K7QM-2XPA`. In the lobby you choose:
-- bots, and their style
-- blinds and starting chips
-- a turn timer (off, 20, 30 or 60 s; when time runs out, the player checks if they can, otherwise folds)
-- whether learning helpers are allowed
+**To host:** Main menu → **Multiplayer** → **Host a game** → **Open room**. You get a room code like `K7QM-2XPA` to give your friends. In the lobby you can:
+- add bots and pick their style
+- set the blinds and starting chips
+- turn on a turn timer (20, 30 or 60 seconds; when it runs out, the player checks if they can, otherwise folds)
+- choose whether learning helpers are allowed
+- kick players or lock the room
 
-The table holds at most 8 seats in total. You can kick players and lock the room. Press **Start game** when everyone is in.
+Up to 8 seats in total. Press **Start game** when everyone's in.
 
-**Joining:**
-- **Same Wi-Fi:** rooms on the network show up under **Join a game**. Pick one, type the code, and join.
-- **Over the internet:** the host forwards TCP port `47820` (changeable under *Advanced*) on their router to their computer. Then you type the host's public IP and the code.
+**To join:**
+- **Same Wi-Fi:** the room shows up under **Join a game**. Pick it and type the code.
+- **Over the internet:** the host forwards TCP port `47820` on their router to their computer. You type the host's public IP address and the code.
 
-The first time you host, your OS may ask whether to let the app through the firewall. Allow it on private networks.
+The first time you host, your computer may ask whether to let the app through the firewall. Allow it on private networks.
 
-If a player's connection drops mid-game, their seat stays: the turn timer checks or folds for them, and **Reconnect** puts them back in the same seat.
+If your connection drops, your seat is kept: the turn timer checks or folds for you until you press **Reconnect**.
 
-### How it's kept safe
+### Is it safe?
 
-- **The room code is never sent over the network.** Players prove they know it with a password-authenticated key exchange (SPAKE2). Someone recording the traffic can't recover the code or try guesses offline.
-- **Everything is encrypted and tamper-proof.** Each connection uses its own keys (ChaCha20-Poly1305). Altered or replayed messages drop the connection.
-- **Guessing is cut off.** An address is ignored for the rest of the session after 5 wrong codes. After 50 wrong codes in total, the room stops accepting new players until the host makes a new code.
-- **Limits:**
-  - handshakes must finish within 10 s, with at most 16 in progress at once
-  - messages from players are capped at 16 KiB and about 20 per second
-  - players are refused once all 8 seats are taken
-- **Cheating is blocked.**
-  - The host's computer is the only one that runs the game.
-  - Players only send moves, and each move is checked: it must be that player's turn, the current hand, and a legal move. Repeated messages are ignored.
-  - Each player receives the table with the deck removed and other players' cards hidden. Cards are revealed only at showdown.
-- **Seats can't be stolen.** Reconnecting needs a random per-seat token, and kicked players' tokens stop working.
-- **Discovery reveals nothing secret.** LAN discovery only answers local addresses and shares just the room name, seat count and port. Replies are smaller than requests, so the host can't be used to flood someone else with traffic.
-- **The game port is open only while you host.**
+- **Your room code is never sent over the network,** so nobody listening in can steal it. Wrong guesses get cut off quickly.
+- **Everything is encrypted,** and messages that have been tampered with are rejected.
+- **No cheating:** only the host's computer runs the game. Every move is checked, and nobody receives other players' cards until the showdown.
+- **Seats can't be stolen,** and kicked players can't come back in.
+- **The game port is open only while you're hosting.**
 
-"Helpers off" is a table rule: a modified copy of the game could still work out odds from the player's own cards. No setting lets anyone see another player's cards.
+"Helpers off" is a table rule, not a lock. Someone running a modified copy could still work out odds from their own cards, but no one can ever see another player's cards.
 
-The networking code is in `src-tauri/src/net/` (handshake, encryption, limits) and `src/net/` (protocol, validation, host and player sessions).
+## Contributing
 
-## Web version and Chromebooks
-
-Open **https://1andresito.github.io/imaplaypoker/** in Chrome. To keep it in the launcher like an app, click the install icon at the right of the address bar (or **⋮ → Cast, save, and share → Install page as app**).
-
-- Single-player is the same as in the desktop app: bots, Hand Helper, coaching, stats, sound and music.
-- **No multiplayer:** browsers can't open the direct connections hosting and joining use, so the Multiplayer button is hidden. For multiplayer on a Chromebook, turn on Linux (**Settings → About ChromeOS → Developers → Linux development environment**) and install the `_Debian-Ubuntu.deb` from the releases page (Intel/AMD Chromebooks). Linux runs behind its own network on ChromeOS, so rooms don't show up under *Join a game*: join by typing the host's IP. To host, add port `47820` (TCP) under **Linux development environment → Port forwarding**.
-- Settings and stats are saved in that browser, so clearing site data resets them.
-- It needs an internet connection to load.
-
-GitHub Actions (`.github/workflows/pages.yml`) publishes the site on every push to `main`.
-
-## Run it
-
-```bash
-npm install
-npm run dev        # play in the browser at http://localhost:1420
-npm test           # engine, analysis, bot, store, multiplayer and UI tests
-```
-
-### As a desktop app (Tauri)
-
-You need the Rust toolchain once per machine. See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/):
-
-- **Windows:** [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (“Desktop development with C++”) and [rustup](https://rustup.rs/). WebView2 ships with Windows 11.
-- **macOS:** `xcode-select --install`, then rustup.
-- **Linux:** `libwebkit2gtk-4.1-dev`, `librsvg2-dev`, and the other packages in the prerequisites guide, then rustup.
-
-```bash
-npm run tauri dev     # desktop window with hot reload
-npm run tauri build   # installer for the current OS (src-tauri/target/release/bundle)
-```
-
-Installers for all three platforms are built by GitHub Actions (`.github/workflows/build.yml`) on every push to `main`.
-
-## Releases and auto-update
-
-The desktop app checks for a newer version each time it starts. If one exists, a banner on the main menu offers to download it, install it, and restart. Settings and stats are kept. **Settings → About** shows the current version and has a **Check for updates** button.
-
-To publish a release:
-
-1. Bump the version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
-2. Commit, then tag and push: `git tag v0.3.0 && git push origin v0.3.0`.
-3. GitHub Actions builds every platform and publishes a release with the installers and `latest.json`, which is the feed installed copies check.
-
-Updates are signed, and the app only installs updates signed with the matching key. The public key is in `src-tauri/tauri.conf.json`. The private key must be stored as repository secrets (**Settings → Secrets and variables → Actions**):
-
-| Secret | Value |
-|---|---|
-| `TAURI_SIGNING_PRIVATE_KEY` | contents of the private key file (`~/.tauri/imaplaypoker.key`) |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | its password (`~/.tauri/imaplaypoker.password.txt`) |
-
-Without them, releases still build, but they have no update files. Keep the private key safe: if it's lost, already-installed copies can't verify new updates, and users would need to reinstall by hand once.
-
-## Logo and icons
-
-The chip-stack logo is drawn in code (`src/ui/logo.ts`). After changing it, regenerate the favicon and desktop icons:
-
-```bash
-node --experimental-transform-types scripts/make-icons.mjs
-npx tauri icon app-icon.svg
-```
-
-## Project layout
-
-```
-src/engine/    rules: cards, hand evaluator, betting state machine, side pots, variants
-src/analysis/  learning layer: equity (Monte Carlo), outs, pot odds, threats, preflop chart, coach
-src/ai/        bot personalities (built on the coach's advice, bent by profile)
-src/stats/     VPIP / PFR / results tracking, persisted in local storage
-src/store/     zustand store tying the engine, bots and stats together
-src/ui/        React components (table, action bar, Hand Helper, stats, hand log)
-src-tauri/     the native desktop shell (window only — no game logic in Rust)
-```
+Want to build it yourself or help out? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
-Music: “Jazz Improvisation Looped” by Alex McCulloch (Pro Sensory), [CC0](https://creativecommons.org/publicdomain/zero/1.0/), from [OpenGameArt](https://opengameart.org/content/jazz-improvisation-looped). All sound effects are synthesized in code (`src/audio/sound.ts`).
+Music: "Jazz Improvisation Looped" by Alex McCulloch (Pro Sensory), [CC0](https://creativecommons.org/publicdomain/zero/1.0/), from [OpenGameArt](https://opengameart.org/content/jazz-improvisation-looped). All sound effects are made in code.
+
+Released under the [MIT License](LICENSE).

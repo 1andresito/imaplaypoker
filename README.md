@@ -1,6 +1,6 @@
 # imaplaypoker
 
-A desktop poker game for **Windows, macOS, and Linux** that teaches you while you play.
+A desktop poker game for **Windows, macOS, and Linux** that teaches you while you play. On a **Chromebook** (or any computer, without installing), play the web version at **https://1andresito.github.io/imaplaypoker/**. See [Web version and Chromebooks](#web-version-and-chromebooks).
 
 - **Real game:** No-Limit Texas Hold'em against 1–8 computer opponents with distinct styles (Rock, Shark, Maniac, Calling Station). It handles blinds, min-raises, all-ins, side pots, and split pots.
 - **Hand Helper panel:** shows what you have right now (“Two Pair, Kings and Sevens”) with your best five cards highlighted on the table. It also shows the full hand-rankings ladder with your chance of finishing on each hand, your outs, and what beats you on the current board.
@@ -59,6 +59,17 @@ If a player's connection drops mid-game, their seat stays: the turn timer checks
 "Helpers off" is a table rule: a modified copy of the game could still work out odds from the player's own cards. No setting lets anyone see another player's cards.
 
 The networking code is in `src-tauri/src/net/` (handshake, encryption, limits) and `src/net/` (protocol, validation, host and player sessions).
+
+## Web version and Chromebooks
+
+Open **https://1andresito.github.io/imaplaypoker/** in Chrome. To keep it in the launcher like an app, click the install icon at the right of the address bar (or **⋮ → Cast, save, and share → Install page as app**).
+
+- Single-player is the same as in the desktop app: bots, Hand Helper, coaching, stats, sound and music.
+- **No multiplayer:** browsers can't open the direct connections hosting and joining use, so the Multiplayer button is hidden. For multiplayer on a Chromebook, turn on Linux (**Settings → About ChromeOS → Developers → Linux development environment**) and install the `_Debian-Ubuntu.deb` from the releases page (Intel/AMD Chromebooks). Linux runs behind its own network on ChromeOS, so rooms don't show up under *Join a game*: join by typing the host's IP. To host, add port `47820` (TCP) under **Linux development environment → Port forwarding**.
+- Settings and stats are saved in that browser, so clearing site data resets them.
+- It needs an internet connection to load.
+
+GitHub Actions (`.github/workflows/pages.yml`) publishes the site on every push to `main`.
 
 ## Run it
 
